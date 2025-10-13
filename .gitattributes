@@ -1,0 +1,2 @@
+python-sdk/agentbox/api/client/** linguist-generated=true
+**/*.gen.ts linguist-generated=true

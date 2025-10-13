@@ -1,0 +1,44 @@
+[tool.poetry]
+name = "agentbox-python-sdk"
+version = "0.2.8"
+description = "AgentBox Python SDK that give agents cloud environments"
+authors = ["agentbox <agentbox@mail.agentbox.cloud>"]
+license = "MIT"
+readme = "README.md"
+homepage = "https://agentbox.space/"
+repository = "https://github.com/agentbox-space/agentbox"
+packages = [{ include = "agentbox" }, { include = "agentbox_connect" }]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+
+python-dateutil = ">=2.8.2"
+protobuf = ">=5.29.4, <6.0.0"
+httpcore = "^1.0.5"
+httpx = ">=0.27.0, <1.0.0"
+attrs = ">=23.2.0"
+packaging = ">=24.1"
+typing-extensions = ">=4.1.0"
+paramiko = "^3.5.1"
+adbutils = "^2.9.3"
+adb_shell = ">=0.4.4"
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.7.0"
+pytest = "^7.4.0"
+pytest-xdist = "^3.3.1"
+python-dotenv = "^1.0.0"
+pytest-dotenv = "^0.5.2"
+pytest-asyncio = "^0.23.7"
+pydoc-markdown = "^4.8.2"
+ruff = "^0.11.12"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.urls]
+"Bug Tracker" = "https://github.com/agentbox-space/issues"
+
+[options.package_data]
+agentbox = ["bin/**/*"]
