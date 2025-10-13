@@ -2,7 +2,7 @@
 name = "agentbox-python-sdk"
 version = "0.2.8"
 description = "AgentBox Python SDK that give agents cloud environments"
-authors = ["agentbox <agentbox@agentbox.cloud>"]
+authors = ["agentbox <agentbox@mail.agentbox.cloud>"]
 license = "MIT"
 readme = "README.md"
 homepage = "https://agentbox.space/"
