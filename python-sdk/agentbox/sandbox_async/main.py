@@ -11,8 +11,7 @@ from agentbox.envd.api import ENVD_API_HEALTH_ROUTE, ahandle_envd_api_exception
 from agentbox.exceptions import format_request_timeout_error
 from agentbox.sandbox.main import SandboxSetup
 from agentbox.sandbox.utils import class_method_variant
-# from agentbox.sandbox_async.adb_shell.adb_shell import ADBShell
-from agentbox.sandbox_async.adb_shell2.adb_shell2 import ADBShell2
+from agentbox.sandbox_async.adb_shell.adb_shell import ADBShell
 from agentbox.sandbox_async.filesystem.filesystem import Filesystem
 from agentbox.sandbox_async.commands.command import Commands
 from agentbox.sandbox_async.commands.pty import Pty
@@ -109,18 +108,11 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         return self._envd_api_url
 
     @property
-    def adb_shell(self) -> ADBShell2:
+    def adb_shell(self) -> ADBShell:
         """
         Module for adb shell in the sandbox.
         """
         return self._adb_shell
-    
-    @property
-    def adb_shell2(self) -> ADBShell2:
-        """
-        Module for adb shell2 in the sandbox.
-        """
-        return self._adb_shell2
 
     @property
     def _envd_access_token(self) -> str:
@@ -204,17 +196,10 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
                 self._commands,
                 self._watch_commands,
             )
-            # self._adb_shell = ADBShell(
-            #     forwarder_command= self._adb_forwarder_command,
-            #     connect_command = self._adb_connect_command,
-            #     adb_auth_command = self._adb_auth_command,
-            #     adb_auth_password = self._adb_auth_password
-            # )
-            self._adb_shell2 = ADBShell2(
+            self._adb_shell = ADBShell(
                 connection_config=self.connection_config,
                 sandbox_id=self._sandbox_id
             )
-            self._adb_shell = self._adb_shell2
         else:
             self._transport = AsyncTransportWithLogger(
                 limits=self._limits, proxy=self._connection_config.proxy
