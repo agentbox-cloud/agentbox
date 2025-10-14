@@ -1,17 +1,21 @@
-<h4 align="left">
+<h4 align="left" style="display: flex; align-items: center;">
   <a href="https://pypi.org/project/agentbox-python-sdk/">
-    <img alt="Last 1 month downloads for the Python SDK" loading="lazy" width="200" height="20" decoding="async" data-nimg="1"
-    style="color:transparent;width:auto;height:100%" src="https://img.shields.io/pypi/dm/agentbox-python-sdk?label=PyPI%20Downloads">
+    <img alt="Last 1 month downloads for the Python SDK" loading="lazy" width="auto" height="20" decoding="async" 
+    style="margin-right: 10px;" 
+    src="https://img.shields.io/pypi/dm/agentbox-python-sdk?label=PyPI%20Downloads">
   </a>
   <a href="https://pypi.org/project/agentbox-python-sdk/">
-    <img alt="Python >= 3.9" loading="lazy" width="200" height="20" decoding="async" data-nimg="1"
-    style="color:transparent;width:auto;height:100%" src="https://img.shields.io/badge/Python-3.9%2B-blue">
+    <img alt="Python >= 3.9" loading="lazy" width="auto" height="20" decoding="async" 
+    style="margin-right: 10px;" 
+    src="https://img.shields.io/badge/Python-3.9%2B-blue">
   </a>
   <a href="https://www.apache.org/licenses/LICENSE-2.0">
-    <img alt="Apache License 2.0" loading="lazy" width="200" height="20" decoding="async" data-nimg="1"
-    style="color:transparent;width:auto;height:100%" src="https://img.shields.io/badge/License-Apache%202.0-blue">
+    <img alt="Apache License 2.0" loading="lazy" width="auto" height="20" decoding="async" 
+    style="margin-right: 0;" 
+    src="https://img.shields.io/badge/License-Apache%202.0-blue">
   </a>
 </h4>
+
 
 # AgentBox
 
