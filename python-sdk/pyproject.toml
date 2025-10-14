@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "agentbox-python-sdk"
-version = "0.2.8"
+version = "1.0.1"
 description = "AgentBox Python SDK that give agents cloud environments"
 authors = ["agentbox <agentbox@mail.agentbox.cloud>"]
 license = "MIT"

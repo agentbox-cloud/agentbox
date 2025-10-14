@@ -17,7 +17,7 @@ pip install agentbox-python-sdk
 3. Create API key, and set environment variable with your API key
 
 ```
-export AGENTBOX_API_KEY=ag_******
+export AGENTBOX_API_KEY=ab_******
 ```
 
 ### 3. Execute code with AgentBox Job
@@ -25,8 +25,8 @@ export AGENTBOX_API_KEY=ag_******
 ```python
 from agentbox import Sandbox
 
-sbx = Sandbox(api_key="ab_xxx_xxx_xxx",
-              template="tpl_xxx_xxx_xxx",
+sbx = Sandbox(api_key="ab_******",
+              template="template_id",
               timeout=120)
 sbx.commands.run(cmd="ls /")
 ```
@@ -34,10 +34,3 @@ sbx.commands.run(cmd="ls /")
 ### 4. Documents
 
 Visit [AgentBox Documents](https://agentbox.space/docs)
-
-## Contact us
-
-For inquiries or support, feel free to reach out to us at:
-
-[agentbox@mail.agentbox.cloud](mailto:agentbox@mail.agentbox.cloud)
-
