@@ -20,7 +20,6 @@ attrs = ">=23.2.0"
 packaging = ">=24.1"
 typing-extensions = ">=4.1.0"
 paramiko = "^3.5.1"
-adbutils = "^2.9.3"
 adb_shell = ">=0.4.4"
 
 [tool.poetry.group.dev.dependencies]
@@ -39,6 +38,3 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.urls]
 "Bug Tracker" = "https://github.com/agentbox-space/issues"
-
-[options.package_data]
-agentbox = ["bin/**/*"]

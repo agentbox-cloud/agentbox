@@ -12,8 +12,7 @@ from agentbox.envd.api import ENVD_API_HEALTH_ROUTE, handle_envd_api_exception
 from agentbox.exceptions import SandboxException, format_request_timeout_error
 from agentbox.sandbox.main import SandboxSetup
 from agentbox.sandbox.utils import class_method_variant
-# from agentbox.sandbox_sync.adb_shell.adb_shell import ADBShell
-from agentbox.sandbox_sync.adb_shell2.adb_shell2 import ADBShell2
+from agentbox.sandbox_sync.adb_shell.adb_shell import ADBShell
 from agentbox.sandbox_sync.filesystem.filesystem import Filesystem
 from agentbox.sandbox_sync.commands.command import Commands
 from agentbox.sandbox_sync.commands.pty import Pty
@@ -75,18 +74,11 @@ class Sandbox(SandboxSetup, SandboxApi):
         return self._commands
 
     @property
-    def adb_shell(self) -> ADBShell2:
+    def adb_shell(self) -> ADBShell:
         """
         Module for adb shell in the sandbox.
         """
         return self._adb_shell
-    
-    @property
-    def adb_shell2(self) -> ADBShell2:
-        """
-        Module for adb shell2 in the sandbox.
-        """
-        return self._adb_shell2
 
     @property
     def pty(self) -> Pty:
@@ -290,17 +282,10 @@ class Sandbox(SandboxSetup, SandboxApi):
                 self._commands,
                 self._watch_commands,
             )
-            # self._adb_shell = ADBShell(
-            #     forwarder_command=self._adb_info.forwarder_command,
-            #     connect_command=self._adb_info.connect_command,
-            #     adb_auth_command=self._adb_info.adb_auth_command,
-            #     adb_auth_password=self._adb_info.auth_password,
-            # )
-            self._adb_shell2 = ADBShell2(
+            self._adb_shell = ADBShell(
                 connection_config=self.connection_config,
                 sandbox_id=self._sandbox_id
             )
-            self._adb_shell = self._adb_shell2
         else:  
             self._envd_api_url = f"{'http' if self.connection_config.debug else 'https'}://{self.get_host(self.envd_port)}"
             self._envd_api = httpx.Client(
