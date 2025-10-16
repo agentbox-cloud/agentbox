@@ -69,7 +69,7 @@ class ApiClient(AuthenticatedClient):
         if require_api_key:
             if config.api_key is None:
                 raise AuthenticationException(
-                    "API key is required, please visit the Team tab at https://agentbox.space/dashboard to get your API key. "
+                    "API key is required, please visit the Team tab at https://agentbox.cloud/dashboard to get your API key. "
                     "You can either set the environment variable `AGENTBOX_API_KEY` "
                     'or you can pass it directly to the sandbox like Sandbox(api_key="e2b_...")',
                 )
@@ -78,7 +78,7 @@ class ApiClient(AuthenticatedClient):
         if require_access_token:
             if config.access_token is None:
                 raise AuthenticationException(
-                    "Access token is required, please visit the Personal tab at https://agentbox.space/dashboard to get your access token. "
+                    "Access token is required, please visit the Personal tab at https://agentbox.cloud/dashboard to get your access token. "
                     "You can set the environment variable `AGENTBOX_ACCESS_TOKEN` or pass the `access_token` in options.",
                 )
             token = config.access_token

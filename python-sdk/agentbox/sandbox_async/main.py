@@ -63,7 +63,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
     - Run isolated code
     - Access the internet
 
-    Check docs [here](https://agentbox.space/docs).
+    Check docs [here](https://agentbox.cloud/docs).
 
     Use the `AsyncSandbox.create()` to create a new sandbox.
 
