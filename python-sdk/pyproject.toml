@@ -1,12 +1,12 @@
 [tool.poetry]
 name = "agentbox-python-sdk"
-version = "1.0.1"
+version = "1.0.3"
 description = "AgentBox Python SDK that give agents cloud environments"
 authors = ["agentbox <agentbox@mail.agentbox.cloud>"]
 license = "MIT"
 readme = "README.md"
-homepage = "https://agentbox.space/"
-repository = "https://github.com/agentbox-space/agentbox"
+homepage = "https://agentbox.cloud/"
+repository = "https://github.com/agentbox-cloud/agentbox"
 packages = [{ include = "agentbox" }, { include = "agentbox_connect" }]
 
 [tool.poetry.dependencies]
@@ -37,4 +37,4 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.urls]
-"Bug Tracker" = "https://github.com/agentbox-space/issues"
+"Bug Tracker" = "https://github.com/agentbox-cloud/issues"

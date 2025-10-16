@@ -1,7 +1,7 @@
 """
 Secure sandboxed cloud environments made for AI agents and AI apps.
 
-Check docs [here](https://agentbox.space/docs).
+Check docs [here](https://agentbox.cloud/docs).
 
 E2B Sandbox is a secure cloud sandbox environment made for AI agents and AI
 apps.

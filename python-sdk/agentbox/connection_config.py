@@ -16,7 +16,7 @@ class ConnectionConfig:
 
     @staticmethod
     def _domain():
-        return os.getenv("AGENTBOX_DOMAIN", "agentbox.space")
+        return os.getenv("AGENTBOX_DOMAIN", "agentbox.cloud")
 
     @staticmethod
     def _debug():
