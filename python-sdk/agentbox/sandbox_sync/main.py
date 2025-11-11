@@ -1,9 +1,11 @@
 import logging
 import httpx
 import re
+import uuid
+import json
 from datetime import datetime
 
-from typing import Dict, Optional, overload
+from typing import Dict, Optional, overload, Any
 
 from agentbox.api.client.models import SandboxADB, InstanceAuthInfo
 from agentbox.api.client.types import Unset
@@ -184,14 +186,15 @@ class Sandbox(SandboxSetup, SandboxApi):
             timeout = timeout or self.default_sandbox_timeout
             response = SandboxApi._create_sandbox(
                 template=template,
-                api_key=api_key,
                 timeout=timeout,
+                auto_pause=False,
                 metadata=metadata,
                 env_vars=envs,
+                secure=secure or False,
+                api_key=api_key,
                 domain=domain,
                 debug=debug,
                 request_timeout=request_timeout,
-                secure=secure or False,
                 proxy=proxy,
             )
             self._sandbox_id = response.sandbox_id
@@ -348,42 +351,113 @@ class Sandbox(SandboxSetup, SandboxApi):
 
         return True
 
-    @classmethod
+    @overload
     def connect(
-        cls,
-        sandbox_id: str,
-        api_key: Optional[str] = None,
-        domain: Optional[str] = None,
-        debug: Optional[bool] = None,
-        proxy: Optional[ProxyTypes] = None,
+        self,
+        timeout: Optional[int] = None,
+        request_timeout: Optional[float] = None,
     ):
         """
-        Connects to an existing Sandbox.
+        Connect to a sandbox. If the sandbox is paused, it will be automatically resumed.
+        Sandbox must be either running or be paused.
+
         With sandbox ID you can connect to the same sandbox from different places or environments (serverless functions, etc).
 
-        :param sandbox_id: Sandbox ID
-        :param api_key: E2B API Key to use for authentication, defaults to `AGENTBOX_API_KEY` environment variable
-        :param proxy: Proxy to use for the request and for the **requests made to the returned sandbox**
-
-        :return: sandbox instance for the existing sandbox
+        :param timeout: Timeout for the sandbox in **seconds**.
+            For running sandboxes, the timeout will update only if the new timeout is longer than the existing one.
+        :param request_timeout: Timeout for the request in **seconds**
+        :return: A running sandbox instance
 
         @example
         ```python
         sandbox = Sandbox()
-        sandbox_id = sandbox.sandbox_id
+        sandbox.pause()
 
         # Another code block
-        same_sandbox = Sandbox.connect(sandbox_id)
+        same_sandbox = sandbox.connect()
         ```
         """
+        ...
 
-        return cls(
-            sandbox_id=sandbox_id,
-            api_key=api_key,
-            domain=domain,
-            debug=debug,
-            proxy=proxy,
+    @overload
+    @classmethod
+    def connect(
+        cls,
+        sandbox_id: str,
+        timeout: Optional[int] = None,
+        api_key: Optional[str] = None,
+        domain: Optional[str] = None,
+        debug: Optional[bool] = None,
+        request_timeout: Optional[float] = None,
+        proxy: Optional[ProxyTypes] = None,
+    ):
+        """
+        Connect to a sandbox. If the sandbox is paused, it will be automatically resumed.
+        Sandbox must be either running or be paused.
+
+        With sandbox ID you can connect to the same sandbox from different places or environments (serverless functions, etc).
+
+        :param sandbox_id: Sandbox ID
+        :param timeout: Timeout for the sandbox in **seconds**.
+            For running sandboxes, the timeout will update only if the new timeout is longer than the existing one.
+        :param api_key: E2B API Key to use for authentication, defaults to `AGENTBOX_API_KEY` environment variable
+        :param domain: Domain of the sandbox server
+        :param debug: Enable debug mode
+        :param request_timeout: Timeout for the request in **seconds**
+        :param proxy: Proxy to use for the request and for the **requests made to the returned sandbox**
+        :return: A running sandbox instance
+
+        @example
+        ```python
+        sandbox = Sandbox()
+        Sandbox.pause(sandbox.sandbox_id)
+
+        # Another code block
+        same_sandbox = Sandbox.connect(sandbox.sandbox_id)
+        ```
+        """
+        ...
+
+    @class_method_variant("_cls_connect")
+    def connect(
+        self,
+        timeout: Optional[int] = None,
+        request_timeout: Optional[float] = None,
+    ):
+        """
+        Connect to a sandbox. If the sandbox is paused, it will be automatically resumed.
+        Sandbox must be either running or be paused.
+
+        With sandbox ID you can connect to the same sandbox from different places or environments (serverless functions, etc).
+
+        :param timeout: Timeout for the sandbox in **seconds**.
+            For running sandboxes, the timeout will update only if the new timeout is longer than the existing one.
+        :param request_timeout: Timeout for the request in **seconds**
+        :return: A running sandbox instance
+
+        @example
+        ```python
+        sandbox = Sandbox()
+        sandbox.pause()
+
+        # Another code block
+        same_sandbox = sandbox.connect()
+        ```
+        """
+        config_dict = self.connection_config.__dict__
+        config_dict.pop("access_token", None)
+        config_dict.pop("api_url", None)
+
+        if request_timeout:
+            config_dict["request_timeout"] = request_timeout
+
+        SandboxApi._cls_connect(
+            sandbox_id=self.sandbox_id,
+            timeout=timeout,
+            **config_dict,
         )
+
+        return self
 
     def __enter__(self):
         return self
@@ -570,6 +644,147 @@ class Sandbox(SandboxSetup, SandboxApi):
             sandbox_id=self.sandbox_id,
             valid_time=valid_time,
             **config_dict,
+        )
+
+    @classmethod
+    def _cls_connect(
+        cls,
+        sandbox_id: str,
+        timeout: Optional[int] = None,
+        api_key: Optional[str] = None,
+        domain: Optional[str] = None,
+        debug: Optional[bool] = None,
+        request_timeout: Optional[float] = None,
+        proxy: Optional[ProxyTypes] = None,
+    ):
+        sandbox = SandboxApi._cls_connect(
+            sandbox_id=sandbox_id,
+            timeout=timeout,
+            api_key=api_key,
+            domain=domain,
+            debug=debug,
+            request_timeout=request_timeout,
+            proxy=proxy,
+        )
+
+        connection_headers = {}
+        envd_access_token = sandbox.envd_access_token
+        if envd_access_token is not None and not isinstance(envd_access_token, Unset):
+            connection_headers["X-Access-Token"] = envd_access_token
+
+        return cls(
+            sandbox_id=sandbox_id,
+            api_key=api_key,
+            domain=domain,
+            debug=debug,
+            request_timeout=request_timeout,
+            proxy=proxy,
+        )
+
+    @classmethod
+    def beta_create(
+        cls,
+        template: Optional[str] = None,
+        timeout: Optional[int] = None,
+        auto_pause: bool = False,
+        metadata: Optional[Dict[str, str]] = None,
+        envs: Optional[Dict[str, str]] = None,
+        secure: bool = True,
+        api_key: Optional[str] = None,
+        domain: Optional[str] = None,
+        debug: Optional[bool] = None,
+        request_timeout: Optional[float] = None,
+        proxy: Optional[ProxyTypes] = None,
+    ):
+        """
+        [BETA] This feature is in beta and may change in the future.
+
+        Create a new sandbox.
+
+        By default, the sandbox is created from the default `base` sandbox template.
+
+        :param template: Sandbox template name or ID
+        :param timeout: Timeout for the sandbox in **seconds**, default to 300 seconds. The maximum time a sandbox can be kept alive is 24 hours (86_400 seconds) for Pro users and 1 hour (3_600 seconds) for Hobby users.
+        :param auto_pause: Automatically pause the sandbox after the timeout expires. Defaults to `False`.
+        :param metadata: Custom metadata for the sandbox
+        :param envs: Custom environment variables for the sandbox
+        :param secure: Envd is secured with access token and cannot be used without it, defaults to `True`.
+        :param api_key: E2B API Key to use for authentication, defaults to `AGENTBOX_API_KEY` environment variable
+        :param domain: Domain of the sandbox server
+        :param debug: Enable debug mode
+        :param request_timeout: Timeout for the request in **seconds**
+        :param proxy: Proxy to use for the request and for the **requests made to the returned sandbox**
+
+        :return: A Sandbox instance for the new sandbox
+
+        Use this method instead of using the constructor to create a new sandbox.
+        """
+
+        if not template:
+            template = cls.default_template
+
+        sandbox = cls._create(
+            template=template,
+            auto_pause=auto_pause,
+            timeout=timeout,
+            metadata=metadata,
+            envs=envs,
+            secure=secure,
+            api_key=api_key,
+            domain=domain,
+            debug=debug,
+            request_timeout=request_timeout,
+            proxy=proxy,
+        )
+        
+        return sandbox
+
+    @classmethod
+    def _create(
+        cls,
+        template: Optional[str],
+        timeout: Optional[int],
+        auto_pause: bool,
+        metadata: Optional[Dict[str, str]],
+        envs: Optional[Dict[str, str]],
+        secure: bool,
+        api_key: Optional[str] = None,
+        domain: Optional[str] = None,
+        debug: Optional[bool] = None,
+        request_timeout: Optional[float] = None,
+        proxy: Optional[ProxyTypes] = None,
+    ):
+        if debug:
+            sandbox_id = "debug_sandbox_id"
+        else:
+            response = SandboxApi._create_sandbox(
+                template=template or cls.default_template,
+                timeout=timeout or cls.default_sandbox_timeout,
+                auto_pause=auto_pause,
+                metadata=metadata,
+                env_vars=envs,
+                secure=secure,
+                api_key=api_key,
+                domain=domain,
+                debug=debug,
+                request_timeout=request_timeout,
+                proxy=proxy,
+            )
+
+            sandbox_id = response.sandbox_id
+
+        return cls(
+            sandbox_id=sandbox_id,
+            template=None,
+            timeout=None,
+            metadata=None,
+            envs=None,
+            secure=None,
+            api_key=api_key,
+            domain=domain,
+            debug=debug,
+            request_timeout=request_timeout,
+            proxy=proxy,
         )
 
     @classmethod

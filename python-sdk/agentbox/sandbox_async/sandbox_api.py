@@ -5,9 +5,9 @@ from packaging.version import Version
 
 
 from agentbox.sandbox.sandbox_api import SandboxInfo, SandboxApiBase, SandboxQuery, ListedSandbox
-from agentbox.exceptions import TemplateException
+from agentbox.exceptions import TemplateException, SandboxException, NotFoundException
 from agentbox.api import AsyncApiClient, SandboxCreateResponse
-from agentbox.api.client.models import NewSandbox, PostSandboxesSandboxIDTimeoutBody, SandboxADB, SandboxADBPublicInfo, SandboxSSH, InstanceAuthInfo, ResumedSandbox
+from agentbox.api.client.models import NewSandbox, PostSandboxesSandboxIDTimeoutBody, SandboxADB, SandboxADBPublicInfo, SandboxSSH, InstanceAuthInfo, ResumedSandbox, Sandbox, Error, ConnectSandbox
 from agentbox.api.client.api.sandboxes import (
     get_sandboxes_sandbox_id,
     post_sandboxes_sandbox_id_timeout,
@@ -21,6 +21,7 @@ from agentbox.api.client.api.sandboxes import (
     get_sandboxes_sandbox_id_adb_public_info,
     post_sandboxes_sandbox_id_pause,
     post_sandboxes_sandbox_id_resume,
+    post_sandboxes_sandbox_id_connect,
 )
 from agentbox.connection_config import ConnectionConfig, ProxyTypes
 from agentbox.api import handle_api_exception
@@ -267,6 +268,49 @@ class SandboxApi(SandboxApiBase):
 
             return res.parsed
 
+    @classmethod
+    async def _cls_connect(
+        cls,
+        sandbox_id: str,
+        timeout: Optional[int] = None,
+        api_key: Optional[str] = None,
+        domain: Optional[str] = None,
+        debug: Optional[bool] = None,
+        request_timeout: Optional[float] = None,
+        headers: Optional[Dict[str, str]] = None,
+        proxy: Optional[ProxyTypes] = None,
+    ) -> Sandbox:
+        timeout = timeout or 300
+
+        config = ConnectionConfig(
+            api_key=api_key,
+            domain=domain,
+            debug=debug,
+            request_timeout=request_timeout,
+            headers=headers,
+            proxy=proxy,
+        )
+
+        async with AsyncApiClient(
+            config,
+            limits=SandboxApiBase._limits,
+        ) as api_client:
+            res = await post_sandboxes_sandbox_id_connect.asyncio_detailed(
+                sandbox_id,
+                client=api_client,
+                body=ConnectSandbox(timeout=timeout),
+            )
+
+            if res.status_code == 404:
+                raise NotFoundException(f"Paused sandbox {sandbox_id} not found")
+
+            if res.status_code >= 300:
+                raise handle_api_exception(res)
+
+            if isinstance(res.parsed, Error):
+                raise SandboxException(f"{res.parsed.message}: Request failed")
+
+            return res.parsed
 
     @classmethod
     async def _get_adb(
@@ -499,6 +543,7 @@ class SandboxApi(SandboxApiBase):
         cls,
         template: str,
         timeout: int,
+        auto_pause: bool,
         metadata: Optional[Dict[str, str]] = None,
         env_vars: Optional[Dict[str, str]] = None,
         secure: Optional[bool] = None,
@@ -527,6 +572,7 @@ class SandboxApi(SandboxApiBase):
                     template_id=template,
                     metadata=metadata or {},
                     timeout=timeout,
+                    auto_pause=auto_pause,
                     env_vars=env_vars or {},
                     secure=secure or False,
                 ),

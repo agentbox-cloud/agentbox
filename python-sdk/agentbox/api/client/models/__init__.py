@@ -5,6 +5,7 @@ from .access_token_response_user import AccessTokenResponseUser
 from .access_token_response_weak_password import AccessTokenResponseWeakPassword
 from .auth_user import AuthUser
 from .created_access_token import CreatedAccessToken
+from .connect_sandbox import ConnectSandbox
 from .created_team_api_key import CreatedTeamAPIKey
 from .default_template_request import DefaultTemplateRequest
 from .error import Error
@@ -57,6 +58,7 @@ __all__ = (
     "AccessTokenResponseWeakPassword",
     "AuthUser",
     "CreatedAccessToken",
+    "ConnectSandbox",
     "CreatedTeamAPIKey",
     "DefaultTemplateRequest",
     "Error",
