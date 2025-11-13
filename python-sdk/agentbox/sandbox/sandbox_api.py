@@ -59,12 +59,34 @@ class SandboxQuery:
     """Filter sandboxes by metadata."""
 
 
+@dataclass
+class SandboxMetrics:
+    """Sandbox metrics."""
+
+    cpu_count: int
+    """Number of CPUs."""
+    cpu_used_pct: float
+    """CPU usage percentage."""
+    disk_total: int
+    """Total disk space in bytes."""
+    disk_used: int
+    """Disk used in bytes."""
+    mem_total: int
+    """Total memory in bytes."""
+    mem_used: int
+    """Memory used in bytes."""
+    timestamp: datetime
+    """Timestamp of the metric entry."""
+
+
 class SandboxApiBase(ABC):
     _limits = Limits(
         max_keepalive_connections=10,
         max_connections=20,
         keepalive_expiry=20,
     )
+
+    default_sandbox_timeout = 300
 
     @staticmethod
     def _get_sandbox_id(sandbox_id: str, client_id: str) -> str:

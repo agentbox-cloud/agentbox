@@ -2,7 +2,7 @@ import urllib.parse
 
 from typing import Optional, Dict, List
 from packaging.version import Version
-
+from typing_extensions import Unpack
 
 from agentbox.sandbox.sandbox_api import SandboxInfo, SandboxApiBase, SandboxQuery, ListedSandbox
 from agentbox.exceptions import TemplateException, SandboxException, NotFoundException
@@ -21,9 +21,8 @@ from agentbox.api.client.api.sandboxes import (
     get_sandboxes_sandbox_id_adb_public_info,
     post_sandboxes_sandbox_id_pause,
     post_sandboxes_sandbox_id_resume,
-    post_sandboxes_sandbox_id_connect,
 )
-from agentbox.connection_config import ConnectionConfig, ProxyTypes
+from agentbox.connection_config import ConnectionConfig, ApiParams
 from agentbox.api import handle_api_exception
 
 
@@ -31,13 +30,8 @@ class SandboxApi(SandboxApiBase):
     @classmethod
     async def list(
         cls,
-        api_key: Optional[str] = None,
         query: Optional[SandboxQuery] = None,
-        domain: Optional[str] = None,
-        debug: Optional[bool] = None,
-        request_timeout: Optional[float] = None,
-        headers: Optional[Dict[str, str]] = None,
-        proxy: Optional[ProxyTypes] = None,
+        **opts: Unpack[ApiParams],
     ) -> List[ListedSandbox]:
         """
         List all running sandboxes.
@@ -52,14 +46,7 @@ class SandboxApi(SandboxApiBase):
 
         :return: List of running sandboxes
         """
-        config = ConnectionConfig(
-            api_key=api_key,
-            domain=domain,
-            debug=debug,
-            request_timeout=request_timeout,
-            headers=headers,
-            proxy=proxy,
-        )
+        config = ConnectionConfig(**opts)
 
         # Convert filters to the format expected by the API
         metadata = None
@@ -110,12 +97,7 @@ class SandboxApi(SandboxApiBase):
     async def get_info(
         cls,
         sandbox_id: str,
-        api_key: Optional[str] = None,
-        domain: Optional[str] = None,
-        debug: Optional[bool] = None,
-        request_timeout: Optional[float] = None,
-        headers: Optional[Dict[str, str]] = None,
-        proxy: Optional[ProxyTypes] = None,
+        **opts: Unpack[ApiParams],
     ) -> SandboxInfo:
         """
         Get the sandbox info.
@@ -129,14 +111,7 @@ class SandboxApi(SandboxApiBase):
 
         :return: Sandbox info
         """
-        config = ConnectionConfig(
-            api_key=api_key,
-            domain=domain,
-            debug=debug,
-            request_timeout=request_timeout,
-            headers=headers,
-            proxy=proxy,
-        )
+        config = ConnectionConfig(**opts)
 
         async with AsyncApiClient(
             config,
@@ -173,13 +148,8 @@ class SandboxApi(SandboxApiBase):
     async def get_instance_no(
         cls,
         sandbox_id: str,
-        api_key: Optional[str] = None,
-        domain: Optional[str] = None,
-        debug: Optional[bool] = None,
-        request_timeout: Optional[float] = None,
-        headers: Optional[Dict[str, str]] = None,
-        proxy: Optional[ProxyTypes] = None,
-    ) -> SandboxInfo:
+        **opts: Unpack[ApiParams],
+    ) -> str:
         """
         Get the sandbox instance number.
         :param sandbox_id: Sandbox ID
@@ -192,14 +162,7 @@ class SandboxApi(SandboxApiBase):
 
         :return: Sandbox instance number
         """
-        config = ConnectionConfig(
-            api_key=api_key,
-            domain=domain,
-            debug=debug,
-            request_timeout=request_timeout,
-            headers=headers,
-            proxy=proxy,
-        )
+        config = ConnectionConfig(**opts)
 
         async with AsyncApiClient(
             config,
@@ -216,19 +179,14 @@ class SandboxApi(SandboxApiBase):
             if res.parsed is None:
                 raise Exception("Body of the request is None")
 
-            return res.parsed
+            return str(res.parsed)
         
     @classmethod
     async def get_instance_auth_info(
         cls,
         sandbox_id: str,
-        api_key: Optional[str] = None,
-        domain: Optional[str] = None,
-        debug: Optional[bool] = None,
-        request_timeout: Optional[float] = None,
-        headers: Optional[Dict[str, str]] = None,
-        proxy: Optional[ProxyTypes] = None,
         valid_time: Optional[int] = None,
+        **opts: Unpack[ApiParams],
     ) -> InstanceAuthInfo:
         """
         Get the sandbox instance auth info(userId, instanceNo, accessKey, accessSecretKey, expireTime).
@@ -238,17 +196,12 @@ class SandboxApi(SandboxApiBase):
         :param debug: Debug mode, defaults to `AGENTBOX_DEBUG` environment variable
         :param request_timeout: Timeout for the request in **seconds**
         :param headers: Additional headers to send with the request
+        :param proxy: Proxy to use for the request
+        :param valid_time: Valid time for the auth info
 
         :return: Sandbox instance auth info
         """
-        config = ConnectionConfig(
-            api_key=api_key,
-            domain=domain,
-            debug=debug,
-            request_timeout=request_timeout,
-            headers=headers,
-            proxy=proxy,
-        )
+        config = ConnectionConfig(**opts)
 
         async with AsyncApiClient(
             config,
@@ -269,59 +222,10 @@ class SandboxApi(SandboxApiBase):
             return res.parsed
 
     @classmethod
-    async def _cls_connect(
-        cls,
-        sandbox_id: str,
-        timeout: Optional[int] = None,
-        api_key: Optional[str] = None,
-        domain: Optional[str] = None,
-        debug: Optional[bool] = None,
-        request_timeout: Optional[float] = None,
-        headers: Optional[Dict[str, str]] = None,
-        proxy: Optional[ProxyTypes] = None,
-    ) -> Sandbox:
-        timeout = timeout or 300
-
-        config = ConnectionConfig(
-            api_key=api_key,
-            domain=domain,
-            debug=debug,
-            request_timeout=request_timeout,
-            headers=headers,
-            proxy=proxy,
-        )
-
-        async with AsyncApiClient(
-            config,
-            limits=SandboxApiBase._limits,
-        ) as api_client:
-            res = await post_sandboxes_sandbox_id_connect.asyncio_detailed(
-                sandbox_id,
-                client=api_client,
-                body=ConnectSandbox(timeout=timeout),
-            )
-
-            if res.status_code == 404:
-                raise NotFoundException(f"Paused sandbox {sandbox_id} not found")
-
-            if res.status_code >= 300:
-                raise handle_api_exception(res)
-
-            if isinstance(res.parsed, Error):
-                raise SandboxException(f"{res.parsed.message}: Request failed")
-
-            return res.parsed
-
-    @classmethod
     async def _get_adb(
         cls,
         sandbox_id: str,
-        api_key: Optional[str] = None,
-        domain: Optional[str] = None,
-        debug: Optional[bool] = None,
-        request_timeout: Optional[float] = None,
-        headers: Optional[Dict[str, str]] = None,
-        proxy: Optional[ProxyTypes] = None,
+        **opts: Unpack[ApiParams],
     ) -> SandboxADB:
         """
         Get the sandbox ADB information.
@@ -335,14 +239,7 @@ class SandboxApi(SandboxApiBase):
 
         :return: Sandbox ADB info
         """
-        config = ConnectionConfig(
-            api_key=api_key,
-            domain=domain,
-            debug=debug,
-            request_timeout=request_timeout,
-            headers=headers,
-            proxy=proxy,
-        )
+        config = ConnectionConfig(**opts)
 
         async with AsyncApiClient(
             config,
@@ -365,12 +262,7 @@ class SandboxApi(SandboxApiBase):
     async def _get_adb_public_info(
         cls,
         sandbox_id: str,
-        api_key: Optional[str] = None,
-        domain: Optional[str] = None,
-        debug: Optional[bool] = None,
-        request_timeout: Optional[float] = None,
-        headers: Optional[Dict[str, str]] = None,
-        proxy: Optional[ProxyTypes] = None,
+        **opts: Unpack[ApiParams],
     ) -> SandboxADBPublicInfo:
         """
         Get the sandbox ADB public information.
@@ -384,14 +276,7 @@ class SandboxApi(SandboxApiBase):
 
         :return: Sandbox ADB info
         """
-        config = ConnectionConfig(
-            api_key=api_key,
-            domain=domain,
-            debug=debug,
-            request_timeout=request_timeout,
-            headers=headers,
-            proxy=proxy,
-        )
+        config = ConnectionConfig(**opts)
 
         async with AsyncApiClient(
             config,
@@ -414,12 +299,7 @@ class SandboxApi(SandboxApiBase):
     async def _get_ssh(
         cls,
         sandbox_id: str,
-        api_key: Optional[str] = None,
-        domain: Optional[str] = None,
-        debug: Optional[bool] = None,
-        request_timeout: Optional[float] = None,
-        headers: Optional[Dict[str, str]] = None,
-        proxy: Optional[ProxyTypes] = None,
+        **opts: Unpack[ApiParams],
     ) -> SandboxSSH:
         """
         Get the sandbox SSH information.
@@ -433,14 +313,7 @@ class SandboxApi(SandboxApiBase):
 
         :return: Sandbox SSH info
         """
-        config = ConnectionConfig(
-            api_key=api_key,
-            domain=domain,
-            debug=debug,
-            request_timeout=request_timeout,
-            headers=headers,
-            proxy=proxy,
-        )
+        config = ConnectionConfig(**opts)
 
         async with AsyncApiClient(
             config,
@@ -463,21 +336,9 @@ class SandboxApi(SandboxApiBase):
     async def _cls_kill(
         cls,
         sandbox_id: str,
-        api_key: Optional[str] = None,
-        domain: Optional[str] = None,
-        debug: Optional[bool] = None,
-        request_timeout: Optional[float] = None,
-        headers: Optional[Dict[str, str]] = None,
-        proxy: Optional[ProxyTypes] = None,
+        **opts: Unpack[ApiParams],
     ) -> bool:
-        config = ConnectionConfig(
-            api_key=api_key,
-            domain=domain,
-            debug=debug,
-            request_timeout=request_timeout,
-            headers=headers,
-            proxy=proxy,
-        )
+        config = ConnectionConfig(**opts)
 
         if config.debug:
             # Skip killing the sandbox in debug mode
@@ -505,21 +366,9 @@ class SandboxApi(SandboxApiBase):
         cls,
         sandbox_id: str,
         timeout: int,
-        api_key: Optional[str] = None,
-        domain: Optional[str] = None,
-        debug: Optional[bool] = None,
-        request_timeout: Optional[float] = None,
-        headers: Optional[Dict[str, str]] = None,
-        proxy: Optional[ProxyTypes] = None,
+        **opts: Unpack[ApiParams],
     ) -> None:
-        config = ConnectionConfig(
-            api_key=api_key,
-            domain=domain,
-            debug=debug,
-            request_timeout=request_timeout,
-            headers=headers,
-            proxy=proxy,
-        )
+        config = ConnectionConfig(**opts)
 
         if config.debug:
             # Skip setting the timeout in debug mode
@@ -547,21 +396,9 @@ class SandboxApi(SandboxApiBase):
         metadata: Optional[Dict[str, str]] = None,
         env_vars: Optional[Dict[str, str]] = None,
         secure: Optional[bool] = None,
-        api_key: Optional[str] = None,
-        domain: Optional[str] = None,
-        debug: Optional[bool] = None,
-        request_timeout: Optional[float] = None,
-        headers: Optional[Dict[str, str]] = None,
-        proxy: Optional[ProxyTypes] = None,
+        **opts: Unpack[ApiParams],
     ) -> SandboxCreateResponse:
-        config = ConnectionConfig(
-            api_key=api_key,
-            domain=domain,
-            debug=debug,
-            request_timeout=request_timeout,
-            headers=headers,
-            proxy=proxy,
-        )
+        config = ConnectionConfig(**opts)
 
         async with AsyncApiClient(
             config,
@@ -610,52 +447,44 @@ class SandboxApi(SandboxApiBase):
     async def _cls_resume(
         cls,
         sandbox_id: str,
-        timeout: int,
-        api_key: Optional[str] = None,
-        domain: Optional[str] = None,
-        debug: Optional[bool] = None,
-        request_timeout: Optional[float] = None,
-    ) -> bool:
-        config = ConnectionConfig(
-            api_key=api_key,
-            domain=domain,
-            debug=debug,
-            request_timeout=request_timeout,
-        )
+        auto_pause: bool = False,
+        timeout: Optional[int] = None,
+        **opts: Unpack[ApiParams],
+    ) -> Sandbox:
+        timeout = timeout or SandboxApiBase.default_sandbox_timeout
+        config = ConnectionConfig(**opts)
 
         async with AsyncApiClient(config,limits=SandboxApiBase._limits) as api_client:
             res = await post_sandboxes_sandbox_id_resume.asyncio_detailed(
                 sandbox_id,
                 client=api_client,
-                body=ResumedSandbox(timeout=timeout),
+                body=ResumedSandbox(
+                    auto_pause=auto_pause,
+                    timeout=timeout,
+                ),
             )
 
             if res.status_code == 404:
                 raise Exception(f"Paused sandbox {sandbox_id} not found")
 
             if res.status_code == 409:
-                return False
+                raise handle_api_exception(res)
 
             if res.status_code >= 300:
                 raise handle_api_exception(res)
 
-            return True
+            if isinstance(res.parsed, Error):
+                raise SandboxException(f"{res.parsed.message}: Request failed")
+
+            return res.parsed
 
     @classmethod
     async def _cls_pause(
         cls,
         sandbox_id: str,
-        api_key: Optional[str] = None,
-        domain: Optional[str] = None,
-        debug: Optional[bool] = None,
-        request_timeout: Optional[float] = None,
+        **opts: Unpack[ApiParams],
     ) -> bool:
-        config = ConnectionConfig(
-            api_key=api_key,
-            domain=domain,
-            debug=debug,
-            request_timeout=request_timeout,
-        )
+        config = ConnectionConfig(**opts)
 
         async with AsyncApiClient(config,limits=SandboxApiBase._limits) as api_client:
             res = await post_sandboxes_sandbox_id_pause.asyncio_detailed(
