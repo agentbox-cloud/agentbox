@@ -3,16 +3,19 @@ import httpx
 import re
 import uuid
 import json
+from datetime import datetime
 
-from typing import Dict, Optional, TypedDict, overload
+from typing import Dict, Optional, TypedDict, overload, List, Union
 from typing_extensions import Unpack
+from packaging.version import Version
 
 from agentbox.api.client.types import Unset
 from agentbox.connection_config import ConnectionConfig, ProxyTypes, ApiParams
 from agentbox.envd.api import ENVD_API_HEALTH_ROUTE, ahandle_envd_api_exception
-from agentbox.exceptions import format_request_timeout_error
+from agentbox.exceptions import format_request_timeout_error, SandboxException
 from agentbox.sandbox.main import SandboxSetup
 from agentbox.sandbox.utils import class_method_variant
+from agentbox.sandbox.sandbox_api import SandboxMetrics
 from agentbox.sandbox_async.adb_shell.adb_shell import ADBShell
 from agentbox.sandbox_async.filesystem.filesystem import Filesystem
 from agentbox.sandbox_async.commands.command import Commands
@@ -161,7 +164,10 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         self._adb_forwarder_command = opts.get("adb_forwarder_command")
 
         self._envd_api_url = f"{'http' if self.connection_config.debug else 'https'}://{self.get_host(self.envd_port)}"
-        self._envd_version = opts.get("envd_version")
+        envd_version = opts.get("envd_version")
+        if envd_version is not None:
+            self._envd_version = Version(envd_version) if isinstance(envd_version, str) else envd_version
+        
         self._envd_access_token = opts.get("envd_access_token")
 
         # 根据 sandbox id 进行区分 commands 类型
@@ -404,13 +410,11 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         same_sandbox = await sandbox.connect()
         ```
         """
-        await SandboxApi._cls_resume(
+        return await self.__class__._cls_connect(
             sandbox_id=self.sandbox_id,
             timeout=timeout,
             **self.connection_config.get_api_params(**opts),
         )
-
-        return self
 
     async def __aenter__(self):
         return self
@@ -525,9 +529,88 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         )
 
     @classmethod
+    async def _cls_connect(
+        cls,
+        sandbox_id: str,
+        timeout: Optional[int] = None,
+        **opts: Unpack[ApiParams],
+    ):
+        # Skip resume operation for "brd" sandboxes
+        if "brd" in sandbox_id.lower():
+            sandbox_info = await SandboxApi.get_info(
+                sandbox_id=sandbox_id,
+                **opts,
+            )
+            
+            connection_config = ConnectionConfig(**opts)
+            
+            # Get SSH connection details
+            ssh_info = await SandboxApi._get_ssh(
+                sandbox_id=sandbox_id,
+                **opts,
+            )
+
+            # Parse SSH connection details from the connect command
+            pattern = r'ssh\s+-p\s+(\d+).*?\s+([^@\s]+)@([\w\.-]+)'
+            ssh_match = re.search(pattern, ssh_info.connect_command)
+            if ssh_match:
+                ssh_port = int(ssh_match.group(1))
+                ssh_username = ssh_match.group(2)
+                ssh_host = ssh_match.group(3)
+                ssh_password = ssh_info.auth_password
+            else:
+                raise Exception("Could not parse SSH connection details")
+            
+            return cls(
+                sandbox_id=sandbox_id,
+                envd_version=sandbox_info.envd_version,
+                envd_access_token=sandbox_info._envd_access_token,
+                connection_config=connection_config,
+                ssh_host=ssh_host,
+                ssh_port=ssh_port,
+                ssh_username=ssh_username,
+                ssh_password=ssh_password,
+            )
+        else:
+            timeout = timeout or cls.default_sandbox_timeout
+            sandbox = await SandboxApi._cls_connect(
+                sandbox_id=sandbox_id,
+                timeout=timeout,
+                **opts,
+            )
+
+            connection_headers = {}
+            envd_access_token = sandbox.envd_access_token
+            if envd_access_token is not None and not isinstance(envd_access_token, Unset):
+                connection_headers["X-Access-Token"] = envd_access_token
+
+            connection_config = ConnectionConfig(
+                extra_sandbox_headers=connection_headers,
+                **opts,
+            )
+
+            return cls(
+                sandbox_id=sandbox_id,
+                connection_config=connection_config,
+                envd_version=sandbox.envd_version,
+                envd_access_token=envd_access_token,
+            )
+
+    @overload
+    async def resume(
+        self,
+        auto_pause: bool = False,
+        timeout: Optional[int] = None,
+        **opts: Unpack[ApiParams],
+    ):
+        ...
+
+    @overload
+    @classmethod
     async def resume(
         cls,
         sandbox_id: str,
+        auto_pause: bool = False,
         timeout: Optional[int] = None,
         **opts: Unpack[ApiParams],
     ):
@@ -538,6 +621,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         If you pass a custom timeout via the `timeout` parameter, it will be used instead.
 
         :param sandbox_id: sandbox ID
+        :param auto_pause: Automatically pause the sandbox after the timeout expires. Defaults to `False`.
         :param timeout: Timeout for the sandbox in **seconds**
         :param api_key: E2B API Key to use for authentication
         :param domain: Domain of the sandbox server
@@ -547,13 +631,32 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
 
         :return: A running sandbox instance
         """
+        ...
 
-        timeout = timeout or cls.default_sandbox_timeout
+    @class_method_variant("_cls_resume")
+    async def resume(
+        self,
+        auto_pause: bool = False,
+        timeout: Optional[int] = None,
+        **opts: Unpack[ApiParams],
+    ):
+        """
+        Resume the sandbox.
 
-        return await cls.connect(
-            sandbox_id=sandbox_id,
+        The **default sandbox timeout of 300 seconds** will be used for the resumed sandbox.
+        If you pass a custom timeout via the `timeout` parameter, it will be used instead.
+
+        :param auto_pause: Automatically pause the sandbox after the timeout expires. Defaults to `False`.
+        :param timeout: Timeout for the sandbox in **seconds**
+        :param request_timeout: Timeout for the request in **seconds**
+
+        :return: A running sandbox instance
+        """
+        return await self.__class__._cls_resume(
+            sandbox_id=self.sandbox_id,
+            auto_pause=auto_pause,
             timeout=timeout,
-            **opts,
+            **self.connection_config.get_api_params(**opts),
         )
 
     @overload
@@ -616,8 +719,119 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         :param request_timeout: Timeout for the request in **seconds**
         :return: Sandbox info
         """
-        return await SandboxApi.get_info(
+        return await SandboxApi._cls_get_info(
             sandbox_id=self.sandbox_id,
+            **self.connection_config.get_api_params(**opts),
+        )
+    
+    @overload
+    async def get_info(
+        self,
+        **opts: Unpack[ApiParams],
+    ) -> SandboxInfo:
+        """
+        Get sandbox information like sandbox ID, template, metadata, started at/end at date.
+
+        :return: Sandbox info
+        """
+        ...
+
+    @overload
+    @staticmethod
+    async def get_info(
+        sandbox_id: str,
+        **opts: Unpack[ApiParams],
+    ) -> SandboxInfo:
+        """
+        Get sandbox information like sandbox ID, template, metadata, started at/end at date.
+        :param sandbox_id: Sandbox ID
+
+        :return: Sandbox info
+        """
+        ...
+
+    @class_method_variant("_cls_get_info")
+    async def get_info(
+        self,
+        **opts: Unpack[ApiParams],
+    ) -> SandboxInfo:
+        """
+        Get sandbox information like sandbox ID, template, metadata, started at/end at date.
+
+        :return: Sandbox info
+        """
+
+        return await SandboxApi._cls_get_info(
+            sandbox_id=self.sandbox_id,
+            **self.connection_config.get_api_params(**opts),
+        )
+
+
+    @overload
+    async def get_metrics(
+        self,
+        start: Optional[datetime] = None,
+        end: Optional[datetime] = None,
+        **opts: Unpack[ApiParams],
+    ) -> List[SandboxMetrics]:
+        """
+        Get the metrics of the current sandbox.
+
+        :param start: Start time for the metrics in **seconds** (Unix timestamp), defaults to the start of the sandbox
+        :param end: End time for the metrics in **seconds** (Unix timestamp), defaults to the current time
+
+        :return: List of sandbox metrics containing CPU, memory and disk usage information
+        """
+        ...
+
+    @overload
+    @staticmethod
+    async def get_metrics(
+        sandbox_id: str,
+        start: Optional[datetime] = None,
+        end: Optional[datetime] = None,
+        **opts: Unpack[ApiParams],
+    ) -> List[SandboxMetrics]:
+        """
+        Get the metrics of the sandbox specified by sandbox ID.
+
+        :param sandbox_id: Sandbox ID
+        :param start: Start time for the metrics in **seconds** (Unix timestamp), defaults to the start of the sandbox
+        :param end: End time for the metrics in **seconds** (Unix timestamp), defaults to the current time
+
+        :return: List of sandbox metrics containing CPU, memory and disk usage information
+        """
+        ...
+
+    @class_method_variant("_cls_get_metrics")
+    async def get_metrics(
+        self,
+        start: Optional[datetime] = None,
+        end: Optional[datetime] = None,
+        **opts: Unpack[ApiParams],
+    ) -> List[SandboxMetrics]:
+        """
+        Get the metrics of the current sandbox.
+
+        :param start: Start time for the metrics in **seconds** (Unix timestamp), defaults to the start of the sandbox
+        :param end: End time for the metrics in **seconds** (Unix timestamp), defaults to the current time
+
+        :return: List of sandbox metrics containing CPU, memory and disk usage information
+        """
+        if self._envd_version and self._envd_version < Version("0.1.5"):
+            raise SandboxException(
+                "Metrics are not supported in this version of the sandbox, please rebuild your template."
+            )
+
+        if self._envd_version and self._envd_version < Version("0.2.4"):
+            logger.warning(
+                "Disk metrics are not supported in this version of the sandbox, please rebuild the template to get disk metrics."
+            )
+
+        return await SandboxApi._cls_get_metrics(
+            sandbox_id=self.sandbox_id,
+            start=start,
+            end=end,
             **self.connection_config.get_api_params(**opts),
         )
 
@@ -652,73 +866,6 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         )
 
     @classmethod
-    async def _cls_connect(
-        cls,
-        sandbox_id: str,
-        timeout: Optional[int] = None,
-        **opts: Unpack[ApiParams],
-    ):
-        sandbox = await SandboxApi._cls_resume(
-            sandbox_id=sandbox_id,
-            timeout=timeout,
-            **opts,
-        )
-
-        connection_headers = {}
-        envd_access_token = sandbox.envd_access_token
-        if envd_access_token is not None and not isinstance(envd_access_token, Unset):
-            connection_headers["X-Access-Token"] = envd_access_token
-
-        connection_config = ConnectionConfig(
-            extra_sandbox_headers=connection_headers,
-            **opts,
-        )
-
-        if "brd" in sandbox_id.lower():
-            # Get SSH connection details
-            ssh_info = await SandboxApi._get_ssh(
-                sandbox_id=sandbox_id,
-                **opts,
-            )
-
-            # Parse SSH connection details from the connect command
-            pattern = r'ssh\s+-p\s+(\d+).*?\s+([^@\s]+)@([\w\.-]+)'
-            ssh_match = re.search(pattern, ssh_info.connect_command)
-            if ssh_match:
-                ssh_port = int(ssh_match.group(1))
-                ssh_username = ssh_match.group(2)
-                ssh_host = ssh_match.group(3)
-                ssh_password = ssh_info.auth_password
-            else:
-                raise Exception("Could not parse SSH connection details")
-            # Get adb connection details
-            adb_info = await SandboxApi._get_adb(
-                sandbox_id=sandbox_id,
-                **opts,
-            )
-            return cls(
-                sandbox_id=sandbox_id,
-                envd_version=sandbox.envd_version,
-                envd_access_token=envd_access_token,
-                connection_config=connection_config,
-                ssh_host=ssh_host,
-                ssh_port=ssh_port,
-                ssh_username=ssh_username,
-                ssh_password=ssh_password,
-                adb_auth_command=adb_info.adb_auth_command,
-                adb_auth_password=adb_info.auth_password,
-                adb_connect_command=adb_info.connect_command,
-                adb_forwarder_command=adb_info.forwarder_command
-            )
-        else:
-            return cls(
-                sandbox_id=sandbox_id,
-                envd_version=sandbox.envd_version,
-                envd_access_token=envd_access_token,
-                connection_config=connection_config,
-            )
-
-    @classmethod
     async def beta_create(
         cls,
         template: Optional[str] = None,
@@ -726,7 +873,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         auto_pause: bool = False,
         metadata: Optional[Dict[str, str]] = None,
         envs: Optional[Dict[str, str]] = None,
-        secure: bool = True,
+        secure: Optional[bool] = None,
         **opts: Unpack[ApiParams],
     ):
         """
@@ -762,7 +909,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
             timeout=timeout,
             metadata=metadata,
             envs=envs,
-            secure=secure,
+            secure=secure or False,
             **opts,
         )
         
@@ -814,7 +961,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
             # Get SSH connection details
             ssh_info = await SandboxApi._get_ssh(
                 sandbox_id=sandbox_id,
-                **opts,
+                **connection_config.get_api_params(),
             )
 
             # Parse SSH connection details from the connect command
@@ -827,11 +974,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
                 ssh_password = ssh_info.auth_password
             else:
                 raise Exception("Could not parse SSH connection details")
-            # Get adb connection details
-            adb_info = await SandboxApi._get_adb(
-                sandbox_id=sandbox_id,
-                **opts,
-            )
+           
             return cls(
                 sandbox_id=sandbox_id,
                 envd_version=envd_version,
@@ -841,15 +984,11 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
                 ssh_port=ssh_port,
                 ssh_username=ssh_username,
                 ssh_password=ssh_password,
-                adb_auth_command=adb_info.adb_auth_command,
-                adb_auth_password=adb_info.auth_password,
-                adb_connect_command=adb_info.connect_command,
-                adb_forwarder_command=adb_info.forwarder_command
             )
         else:
             return cls(
                 sandbox_id=sandbox_id,
+                connection_config=connection_config,
                 envd_version=envd_version,
                 envd_access_token=envd_access_token,
-                connection_config=connection_config,
             )

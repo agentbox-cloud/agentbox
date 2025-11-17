@@ -136,11 +136,11 @@ class ConnectionConfig:
         """
         headers = opts.get("headers")
         request_timeout = opts.get("request_timeout")
-        api_key = opts.get("api_key")
-        api_url = opts.get("api_url")
-        domain = opts.get("domain")
-        debug = opts.get("debug")
-        proxy = opts.get("proxy")
+        api_key = opts.get("api_key") if "api_key" in opts else self.api_key
+        api_url = opts.get("api_url") if "api_url" in opts else self.api_url
+        domain = opts.get("domain") if "domain" in opts else self.domain
+        debug = opts.get("debug") if "debug" in opts else self.debug
+        proxy = opts.get("proxy") if "proxy" in opts else self.proxy
 
         req_headers = self.headers.copy()
         if headers is not None:
@@ -148,13 +148,13 @@ class ConnectionConfig:
 
         return dict(
             ApiParams(
-                api_key=api_key if api_key is not None else self.api_key,
-                api_url=api_url if api_url is not None else self.api_url,
-                domain=domain if domain is not None else self.domain,
-                debug=debug if debug is not None else self.debug,
+                api_key=api_key,
+                api_url=api_url,
+                domain=domain,
+                debug=debug,
                 request_timeout=self.get_request_timeout(request_timeout),
                 headers=req_headers,
-                proxy=proxy if proxy is not None else self.proxy,
+                proxy=proxy,
             )
         )
 

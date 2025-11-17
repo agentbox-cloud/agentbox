@@ -1,11 +1,13 @@
 import urllib.parse
+import re
+from datetime import datetime
 
 from typing import Optional, Dict, List
 from packaging.version import Version
 from typing_extensions import Unpack
 
-from agentbox.sandbox.sandbox_api import SandboxInfo, SandboxApiBase, SandboxQuery, ListedSandbox
-from agentbox.exceptions import TemplateException, SandboxException
+from agentbox.sandbox.sandbox_api import SandboxInfo, SandboxApiBase, SandboxQuery, ListedSandbox, SandboxMetrics
+from agentbox.exceptions import TemplateException, SandboxException, NotFoundException
 from agentbox.api import ApiClient, SandboxCreateResponse
 from agentbox.api.client.models import NewSandbox, PostSandboxesSandboxIDTimeoutBody, SandboxADB, SandboxADBPublicInfo, SandboxSSH, InstanceAuthInfo, ResumedSandbox, Sandbox, Error, ConnectSandbox
 from agentbox.api.client.api.sandboxes import (
@@ -19,14 +21,21 @@ from agentbox.api.client.api.sandboxes import (
     get_sandboxes_sandbox_id_ssh,
     get_sandboxes_sandbox_id_instance_no,
     get_sandboxes_sandbox_id_instance_auth_info,
+    get_sandboxes_sandbox_id_metrics,
     post_sandboxes_sandbox_id_pause,
     post_sandboxes_sandbox_id_resume,
+    post_sandboxes_sandbox_id_connect,
 )
 from agentbox.connection_config import ConnectionConfig, ApiParams
 from agentbox.api import handle_api_exception
+from agentbox.api.client.types import UNSET, Unset
 
 
 class SandboxApi(SandboxApiBase):
+    envd_port = 49983
+    default_sandbox_timeout = 300
+    default_template = "base"
+
     @classmethod
     def list(
         cls,
@@ -89,56 +98,6 @@ class SandboxApi(SandboxApiBase):
                 )
                 for sandbox in res.parsed
             ]
-
-    @classmethod
-    def get_info(
-        cls,
-        sandbox_id: str,
-        **opts: Unpack[ApiParams],
-    ) -> SandboxInfo:
-        """
-        Get the sandbox info.
-        :param sandbox_id: Sandbox ID
-        :param api_key: API key to use for authentication, defaults to `AGENTBOX_API_KEY` environment variable
-        :param domain: Domain to use for the request, defaults to `AGENTBOX_DOMAIN` environment variable
-        :param debug: Debug mode, defaults to `AGENTBOX_DEBUG` environment variable
-        :param request_timeout: Timeout for the request in **seconds**
-        :param headers: Additional headers to send with the request
-
-        :return: Sandbox info
-        """
-        config = ConnectionConfig(**opts)
-
-        with ApiClient(
-            config,
-            limits=SandboxApiBase._limits,
-        ) as api_client:
-            res = get_sandboxes_sandbox_id.sync_detailed(
-                sandbox_id,
-                client=api_client,
-            )
-
-            if res.status_code >= 300:
-                raise handle_api_exception(res)
-
-            if res.parsed is None:
-                raise Exception("Body of the request is None")
-
-            return SandboxInfo(
-                sandbox_id=SandboxApi._get_sandbox_id(
-                    res.parsed.sandbox_id,
-                    res.parsed.client_id,
-                ),
-                template_id=res.parsed.template_id,
-                name=res.parsed.alias if isinstance(res.parsed.alias, str) else None,
-                metadata=(
-                    res.parsed.metadata if isinstance(res.parsed.metadata, dict) else {}
-                ),
-                started_at=res.parsed.started_at,
-                end_at=res.parsed.end_at,
-                envd_version=res.parsed.envd_version,
-                _envd_access_token=res.parsed.envd_access_token,
-            )
         
     @classmethod
     def get_instance_no(
@@ -222,7 +181,6 @@ class SandboxApi(SandboxApiBase):
         timeout: Optional[int] = None,
         **opts: Unpack[ApiParams],
     ) -> Sandbox:
-        timeout = timeout or SandboxApiBase.default_sandbox_timeout
         config = ConnectionConfig(**opts)
 
         with ApiClient(
@@ -242,7 +200,39 @@ class SandboxApi(SandboxApiBase):
                 raise Exception(f"Paused sandbox {sandbox_id} not found")
 
             if res.status_code == 409:
-                return handle_api_exception(res)
+                raise handle_api_exception(res)
+
+            if res.status_code >= 300:
+                raise handle_api_exception(res)
+
+            if isinstance(res.parsed, Error):
+                raise SandboxException(f"{res.parsed.message}: Request failed")
+
+            return res.parsed
+
+    @classmethod
+    def _cls_connect(
+        cls,
+        sandbox_id: str,
+        timeout: Optional[int] = None,
+        **opts: Unpack[ApiParams],
+    ) -> Sandbox:
+        config = ConnectionConfig(**opts)
+
+        with ApiClient(
+            config,
+            limits=SandboxApiBase._limits,
+        ) as api_client:
+            res = post_sandboxes_sandbox_id_connect.sync_detailed(
+                sandbox_id,
+                client=api_client,
+                body=ConnectSandbox(
+                    timeout=timeout,
+                ),
+            )
+
+            if res.status_code == 404:
+                raise Exception(f"Sandbox {sandbox_id} not found")
 
             if res.status_code >= 300:
                 raise handle_api_exception(res)
@@ -421,6 +411,91 @@ class SandboxApi(SandboxApiBase):
 
             return True
 
+    @classmethod
+    def _cls_get_metrics(
+        cls,
+        sandbox_id: str,
+        start: Optional[datetime] = None,
+        end: Optional[datetime] = None,
+        **opts: Unpack[ApiParams],
+    ) -> List[SandboxMetrics]:
+        config = ConnectionConfig(**opts)
+
+        if config.debug:
+            # Skip getting the metrics in debug mode
+            return []
+
+        with ApiClient(
+            config,
+            limits=SandboxApiBase._limits,
+        ) as api_client:
+            res = get_sandboxes_sandbox_id_metrics.sync_detailed(
+                sandbox_id,
+                start=int(start * 1000) if start else UNSET,
+                end=int(end * 1000) if end else UNSET,
+                client=api_client,
+            )
+
+            if res.status_code >= 300:
+                raise handle_api_exception(res)
+
+            if res.parsed is None:
+                return []
+
+            if isinstance(res.parsed, Error):
+                raise SandboxException(f"{res.parsed.message}: Request failed")
+
+            # Convert to typed SandboxMetrics objects
+            return [
+                SandboxMetrics(
+                    cpu_count=metric.cpu_count,
+                    cpu_used_pct=metric.cpu_used_pct,
+                    disk_total=metric.disk_total if hasattr(metric, 'disk_total') else 0,
+                    disk_used=metric.disk_used if hasattr(metric, 'disk_used') else 0,
+                    mem_total=metric.mem_total_mi_b,
+                    mem_used=metric.mem_used_mi_b,
+                    timestamp=metric.timestamp,
+                )
+                for metric in res.parsed
+            ]
+    
+    @classmethod
+    def _cls_get_info(
+        cls,
+        sandbox_id: str,
+        **opts: Unpack[ApiParams],
+    ) -> SandboxInfo:
+        """
+        Get the sandbox info.
+        :param sandbox_id: Sandbox ID
+
+        :return: Sandbox info
+        """
+        config = ConnectionConfig(**opts)
+
+        with ApiClient(
+            config,
+            limits=SandboxApiBase._limits,
+        ) as api_client:
+            res = get_sandboxes_sandbox_id.sync_detailed(
+                sandbox_id,
+                client=api_client,
+            )
+
+            if res.status_code == 404:
+                raise NotFoundException(f"Sandbox {sandbox_id} not found")
+
+            if res.status_code >= 300:
+                raise handle_api_exception(res)
+
+            if res.parsed is None:
+                raise SandboxException("Body of the request is None")
+
+            if isinstance(res.parsed, Error):
+                raise SandboxException(f"{res.parsed.message}: Request failed")
+
+            return SandboxInfo._from_sandbox_detail(res.parsed)
+    
     @classmethod
     def _cls_set_timeout(
         cls,

@@ -140,7 +140,7 @@ class Sandbox(SandboxSetup, SandboxApi):
         timeout: Optional[int] = None,
         metadata: Optional[Dict[str, str]] = None,
         envs: Optional[Dict[str, str]] = None,
-        secure: bool = True,
+        secure: Optional[bool] = None,
         **opts: Unpack[Union[SandboxOpts, ApiParams]],
     ):
         """
@@ -171,42 +171,52 @@ class Sandbox(SandboxSetup, SandboxApi):
         """
         super().__init__()
 
-        # Extract internal initialization parameters from opts
+        # Extract and validate initialization parameters from opts
         sandbox_id = opts.get("sandbox_id")
         connection_config = opts.get("connection_config")
-        envd_version = opts.get("envd_version")
-        envd_access_token = opts.get("envd_access_token")
-        ssh_host = opts.get("ssh_host")
-        ssh_port = opts.get("ssh_port")
-        ssh_username = opts.get("ssh_username")
-        ssh_password = opts.get("ssh_password")
-
+        
         if sandbox_id and (metadata is not None or template is not None):
             raise SandboxException(
                 "Cannot set metadata or timeout when connecting to an existing sandbox. "
                 "Use Sandbox.connect method instead.",
             )
 
-        if connection_config is not None:
-            config = connection_config
-        else:
-            config = ConnectionConfig(**opts)
-        self._connection_config = config
+        # Initialize connection config
+        self._connection_config = connection_config if connection_config is not None else ConnectionConfig(**opts)
         
-        # Handle internal initialization parameters
+        # Initialize all private attributes with default values or from opts
+        self._envd_version = None
+        self._envd_access_token = None
+        self._ssh_host = None
+        self._ssh_port = None
+        self._ssh_username = None
+        self._ssh_password = None
+        
+        # Set attributes from opts if provided
+        envd_version = opts.get("envd_version")
         if envd_version is not None:
             self._envd_version = Version(envd_version) if isinstance(envd_version, str) else envd_version
+        
+        envd_access_token = opts.get("envd_access_token")
         if envd_access_token is not None:
             self._envd_access_token = envd_access_token
+        
+        ssh_host = opts.get("ssh_host")
         if ssh_host is not None:
             self._ssh_host = ssh_host
+        
+        ssh_port = opts.get("ssh_port")
         if ssh_port is not None:
             self._ssh_port = ssh_port
+        
+        ssh_username = opts.get("ssh_username")
         if ssh_username is not None:
             self._ssh_username = ssh_username
+        
+        ssh_password = opts.get("ssh_password")
         if ssh_password is not None:
             self._ssh_password = ssh_password
-        if config.debug:
+        if self._connection_config.debug:
             self._sandbox_id = "debug_sandbox_id"
             self._envd_version = None
             self._envd_access_token = None
@@ -223,9 +233,9 @@ class Sandbox(SandboxSetup, SandboxApi):
             #     instance_no="debug_sandbox_id"
             # )
         elif sandbox_id is not None:
-            response = SandboxApi.get_info(
+            response = SandboxApi._cls_get_info(
                 sandbox_id=sandbox_id,
-                **config.get_api_params(),
+                **self._connection_config.get_api_params(),
             )
 
             self._sandbox_id = sandbox_id
@@ -237,7 +247,7 @@ class Sandbox(SandboxSetup, SandboxApi):
             if response._envd_access_token is not None and not isinstance(
                     response._envd_access_token, Unset
             ):
-                config.headers["X-Access-Token"] = response._envd_access_token
+                self._connection_config.headers["X-Access-Token"] = response._envd_access_token
 
         else:
             template = template or self.default_template
@@ -260,19 +270,19 @@ class Sandbox(SandboxSetup, SandboxApi):
             ):
                 if self._envd_access_token is None:
                     self._envd_access_token = response.envd_access_token
-                config.headers["X-Access-Token"] = response.envd_access_token
+                self._connection_config.headers["X-Access-Token"] = response.envd_access_token
             else:
                 if self._envd_access_token is None:
                     self._envd_access_token = None
 
-        self._transport = TransportWithLogger(limits=self._limits, proxy=config.proxy)
+        self._transport = TransportWithLogger(limits=self._limits, proxy=self._connection_config.proxy)
 
         # 根据 sandbox id 进行区分 commands 类型
         if "brd" in self._sandbox_id.lower():
             # ssh info
             ssh_info = SandboxApi._get_ssh(
                 sandbox_id=self._sandbox_id,
-                **config.get_api_params(),
+                **self._connection_config.get_api_params(),
             )
             # print("ssh_info:", ssh_info)
             # Parse SSH connection details from the connect command
@@ -491,13 +501,11 @@ class Sandbox(SandboxSetup, SandboxApi):
         same_sandbox = sandbox.connect()
         ```
         """
-        SandboxApi._cls_resume(
+        return self.__class__._cls_connect(
             sandbox_id=self.sandbox_id,
             timeout=timeout,
-            **self.connection_config.get_api_params(**opts),
+            **self._connection_config.get_api_params(**opts),
         )
-
-        return self
 
     def __enter__(self):
         return self
@@ -544,7 +552,7 @@ class Sandbox(SandboxSetup, SandboxApi):
         """
         return SandboxApi._cls_kill(
             sandbox_id=self.sandbox_id,
-            **opts,
+            **self._connection_config.get_api_params(**opts),
         )
 
     @overload
@@ -606,7 +614,7 @@ class Sandbox(SandboxSetup, SandboxApi):
         SandboxApi._cls_set_timeout(
             sandbox_id=self.sandbox_id,
             timeout=timeout,
-            **self.connection_config.get_api_params(**opts),
+            **self._connection_config.get_api_params(**opts),
         )
 
     @overload
@@ -644,9 +652,9 @@ class Sandbox(SandboxSetup, SandboxApi):
 
         :return: Sandbox info
         """
-        return SandboxApi.get_info(
+        return SandboxApi._cls_get_info(
             sandbox_id=self.sandbox_id,
-            **self.connection_config.get_api_params(**opts),
+            **self._connection_config.get_api_params(**opts),
         )
 
     @overload
@@ -659,8 +667,8 @@ class Sandbox(SandboxSetup, SandboxApi):
         """
         Get the metrics of the current sandbox.
 
-        :param start: Start time for the metrics, defaults to the start of the sandbox
-        :param end: End time for the metrics, defaults to the current time
+        :param start: Start time for the metrics in **seconds** (Unix timestamp), defaults to the start of the sandbox
+        :param end: End time for the metrics in **seconds** (Unix timestamp), defaults to the current time
 
         :return: List of sandbox metrics containing CPU, memory and disk usage information
         """
@@ -678,8 +686,8 @@ class Sandbox(SandboxSetup, SandboxApi):
         Get the metrics of the sandbox specified by sandbox ID.
 
         :param sandbox_id: Sandbox ID
-        :param start: Start time for the metrics, defaults to the start of the sandbox
-        :param end: End time for the metrics, defaults to the current time
+        :param start: Start time for the metrics in **seconds** (Unix timestamp), defaults to the start of the sandbox
+        :param end: End time for the metrics in **seconds** (Unix timestamp), defaults to the current time
 
         :return: List of sandbox metrics containing CPU, memory and disk usage information
         """
@@ -695,17 +703,17 @@ class Sandbox(SandboxSetup, SandboxApi):
         """
         Get the metrics of the sandbox specified by sandbox ID.
 
-        :param start: Start time for the metrics, defaults to the start of the sandbox
-        :param end: End time for the metrics, defaults to the current time
+        :param start: Start time for the metrics in **seconds** (Unix timestamp), defaults to the start of the sandbox
+        :param end: End time for the metrics in **seconds** (Unix timestamp), defaults to the current time
 
         :return: List of sandbox metrics containing CPU, memory and disk usage information
         """
-        if self._envd_version < Version("0.1.5"):
+        if self._envd_version and self._envd_version < Version("0.1.5"):
             raise SandboxException(
                 "Metrics are not supported in this version of the sandbox, please rebuild your template."
             )
 
-        if self._envd_version < Version("0.2.4"):
+        if self._envd_version and self._envd_version < Version("0.2.4"):
             logger.warning(
                 "Disk metrics are not supported in this version of the sandbox, please rebuild the template to get disk metrics."
             )
@@ -714,7 +722,7 @@ class Sandbox(SandboxSetup, SandboxApi):
             sandbox_id=self.sandbox_id,
             start=start,
             end=end,
-            **self.connection_config.get_api_params(**opts),
+            **self._connection_config.get_api_params(**opts),
         )
 
     def get_instance_no(
@@ -728,7 +736,7 @@ class Sandbox(SandboxSetup, SandboxApi):
         """
         return SandboxApi.get_instance_no(
             sandbox_id=self.sandbox_id,
-            **opts,
+            **self._connection_config.get_api_params(**opts),
         )
     
     def get_instance_auth_info(
@@ -744,76 +752,8 @@ class Sandbox(SandboxSetup, SandboxApi):
         return SandboxApi.get_instance_auth_info(
             sandbox_id=self.sandbox_id,
             valid_time=valid_time,
-            **opts,
+            **self._connection_config.get_api_params(**opts),
         )
-
-    @classmethod
-    def _cls_connect(
-        cls,
-        sandbox_id: str,
-        timeout: Optional[int] = None,
-        **opts: Unpack[ApiParams],
-    ):
-        if "brd" in sandbox_id.lower():
-            # BRD type sandboxes don't support resume operation
-            # Get sandbox info instead
-            sandbox_info = SandboxApi.get_info(
-                sandbox_id=sandbox_id,
-                **opts,
-            )
-
-            connection_config = ConnectionConfig(**opts)
-
-            # Get SSH connection details
-            ssh_info = SandboxApi._get_ssh(
-                sandbox_id=sandbox_id,
-                **opts,
-            )
-
-            # Parse SSH connection details from the connect command
-            pattern = r'ssh\s+-p\s+(\d+).*?\s+([^@\s]+)@([\w\.-]+)'
-            ssh_match = re.search(pattern, ssh_info.connect_command)
-            if ssh_match:
-                ssh_port = int(ssh_match.group(1))
-                ssh_username = ssh_match.group(2)
-                ssh_host = ssh_match.group(3)
-                ssh_password = ssh_info.auth_password
-            else:
-                raise Exception("Could not parse SSH connection details")
-            
-            return cls(
-                sandbox_id=sandbox_id,
-                envd_version=sandbox_info.envd_version,
-                envd_access_token=sandbox_info._envd_access_token,
-                connection_config=connection_config,
-                ssh_host=ssh_host,
-                ssh_port=ssh_port,
-                ssh_username=ssh_username,
-                ssh_password=ssh_password,
-            )
-        else:
-            sandbox = SandboxApi._cls_resume(
-                sandbox_id=sandbox_id,
-                timeout=timeout,
-                **opts,
-            )
-
-            connection_headers = {}
-            envd_access_token = sandbox.envd_access_token
-            if envd_access_token is not None and not isinstance(envd_access_token, Unset):
-                connection_headers["X-Access-Token"] = envd_access_token
-
-            connection_config = ConnectionConfig(
-                extra_sandbox_headers=connection_headers,
-                **opts,
-            )
-
-            return cls(
-                sandbox_id=sandbox_id,
-                connection_config=connection_config,
-                envd_version=sandbox.envd_version,
-                envd_access_token=envd_access_token,
-            )
 
     @classmethod
     def beta_create(
@@ -823,7 +763,7 @@ class Sandbox(SandboxSetup, SandboxApi):
         auto_pause: bool = False,
         metadata: Optional[Dict[str, str]] = None,
         envs: Optional[Dict[str, str]] = None,
-        secure: bool = True,
+        secure: Optional[bool] = None,
         **opts: Unpack[ApiParams],
     ):
         """
@@ -859,7 +799,7 @@ class Sandbox(SandboxSetup, SandboxApi):
             timeout=timeout,
             metadata=metadata,
             envs=envs,
-            secure=secure,
+            secure=secure or False,
             **opts,
         )
         
@@ -905,17 +845,125 @@ class Sandbox(SandboxSetup, SandboxApi):
             **opts,
         )
 
-        return cls(
-            sandbox_id=sandbox_id,
-            connection_config=connection_config,
-            envd_version=envd_version,
-            envd_access_token=envd_access_token,
-        )
+        if "brd" in sandbox_id.lower():
+            # Get SSH connection details
+            ssh_info = SandboxApi._get_ssh(
+                sandbox_id=sandbox_id,
+                **connection_config.get_api_params(),
+            )
+            
+            # Parse SSH connection details from the connect command
+            pattern = r'ssh\s+-p\s+(\d+).*?\s+([^@\s]+)@([\w\.-]+)'
+            ssh_match = re.search(pattern, ssh_info.connect_command)
+            if ssh_match:
+                ssh_port = int(ssh_match.group(1))
+                ssh_username = ssh_match.group(2)
+                ssh_host = ssh_match.group(3)
+                ssh_password = ssh_info.auth_password
+            else:
+                raise Exception("Could not parse SSH connection details")
 
+            return cls(
+                sandbox_id=sandbox_id,
+                connection_config=connection_config,
+                envd_version=envd_version,
+                envd_access_token=envd_access_token,
+                ssh_host=ssh_host,
+                ssh_port=ssh_port,
+                ssh_username=ssh_username,
+                ssh_password=ssh_password,
+            )
+        else:
+            return cls(
+                sandbox_id=sandbox_id,
+                connection_config=connection_config,
+                envd_version=envd_version,
+                envd_access_token=envd_access_token,
+            )
+
+    @classmethod
+    def _cls_connect(
+        cls,
+        sandbox_id: str,
+        timeout: Optional[int] = None,
+        **opts: Unpack[ApiParams],
+    ):
+        # Skip resume operation for "brd" sandboxes
+        if "brd" in sandbox_id.lower():
+            sandbox_info = SandboxApi.get_info(
+                sandbox_id=sandbox_id,
+                **opts,
+            )
+
+            connection_config = ConnectionConfig(**opts)
+
+            # Get SSH connection details
+            ssh_info = SandboxApi._get_ssh(
+                sandbox_id=sandbox_id,
+                **opts,
+            )
+
+            # Parse SSH connection details from the connect command
+            pattern = r'ssh\s+-p\s+(\d+).*?\s+([^@\s]+)@([\w\.-]+)'
+            ssh_match = re.search(pattern, ssh_info.connect_command)
+            if ssh_match:
+                ssh_port = int(ssh_match.group(1))
+                ssh_username = ssh_match.group(2)
+                ssh_host = ssh_match.group(3)
+                ssh_password = ssh_info.auth_password
+            else:
+                raise Exception("Could not parse SSH connection details")
+            
+            return cls(
+                sandbox_id=sandbox_id,
+                envd_version=sandbox_info.envd_version,
+                envd_access_token=sandbox_info._envd_access_token,
+                connection_config=connection_config,
+                ssh_host=ssh_host,
+                ssh_port=ssh_port,
+                ssh_username=ssh_username,
+                ssh_password=ssh_password,
+            )
+        else:
+            timeout = timeout or cls.default_sandbox_timeout
+            sandbox = SandboxApi._cls_connect(
+                sandbox_id=sandbox_id,
+                timeout=timeout,
+                **opts,
+            )
+
+            connection_headers = {}
+            envd_access_token = sandbox.envd_access_token
+            if envd_access_token is not None and not isinstance(envd_access_token, Unset):
+                connection_headers["X-Access-Token"] = envd_access_token
+
+            connection_config = ConnectionConfig(
+                extra_sandbox_headers=connection_headers,
+                **opts,
+            )
+
+            return cls(
+                sandbox_id=sandbox_id,
+                connection_config=connection_config,
+                envd_version=sandbox.envd_version,
+                envd_access_token=envd_access_token,
+            )
+
+    @overload
+    def resume(self, 
+        auto_pause: bool = False, 
+        timeout: Optional[int] = None, 
+        **opts: Unpack[ApiParams]
+        ):
+        ...
+
+    @overload
     @classmethod
     def resume(
         cls,
         sandbox_id: str,
+        auto_pause: bool = False,
+        timeout: Optional[int] = None,
         **opts: Unpack[ApiParams],
     ):
         """
@@ -925,6 +973,7 @@ class Sandbox(SandboxSetup, SandboxApi):
         If you pass a custom timeout via the `timeout` parameter, it will be used instead.
 
         :param sandbox_id: sandbox ID
+        :param auto_pause: Automatically pause the sandbox after the timeout expires. Defaults to `False`.
         :param timeout: Timeout for the sandbox in **seconds**
         :param api_key: E2B API Key to use for authentication
         :param domain: Domain of the sandbox server
@@ -933,13 +982,32 @@ class Sandbox(SandboxSetup, SandboxApi):
 
         :return: A running sandbox instance
         """
+        ...
+    
+    @class_method_variant("_cls_resume")
+    def resume(
+        self,
+        auto_pause: bool = False,
+        timeout: Optional[int] = None,
+        **opts: Unpack[ApiParams],
+    ):
+        """
+        Resume the sandbox.
 
-        timeout = timeout or cls.default_sandbox_timeout
+        The **default sandbox timeout of 300 seconds** will be used for the resumed sandbox.
+        If you pass a custom timeout via the `timeout` parameter, it will be used instead.
 
-        return cls.connect(
-            sandbox_id=sandbox_id,
+        :param auto_pause: Automatically pause the sandbox after the timeout expires. Defaults to `False`.
+        :param timeout: Timeout for the sandbox in **seconds**
+        :param request_timeout: Timeout for the request in **seconds**
+
+        :return: A running sandbox instance
+        """
+        return self.__class__._cls_resume(
+            sandbox_id=self.sandbox_id,
+            auto_pause=auto_pause,
             timeout=timeout,
-            **opts,
+            **self._connection_config.get_api_params(**opts),
         )
 
     @overload
@@ -979,10 +1047,10 @@ class Sandbox(SandboxSetup, SandboxApi):
         ...
 
     @class_method_variant("_cls_pause")
-    def pause( # type: ignore
+    def pause(
         self,
-        request_timeout: Optional[float] = None,
-    ) -> str:
+        **opts: Unpack[ApiParams],
+    ) -> bool:
         """
         Pause the sandbox.
 
@@ -990,9 +1058,7 @@ class Sandbox(SandboxSetup, SandboxApi):
 
         :return: sandbox ID that can be used to resume the sandbox
         """
-        SandboxApi._cls_pause(
+        return SandboxApi._cls_pause(
             sandbox_id=self.sandbox_id,
-            **self.connection_config.get_api_params(request_timeout=request_timeout),
+            **self._connection_config.get_api_params(**opts),
         )
-
-        return self.sandbox_id
