@@ -537,7 +537,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
     ):
         # Skip resume operation for "brd" sandboxes
         if "brd" in sandbox_id.lower():
-            sandbox_info = await SandboxApi.get_info(
+            sandbox_info = await SandboxApi._cls_get_info(
                 sandbox_id=sandbox_id,
                 **opts,
             )
@@ -658,6 +658,76 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
             timeout=timeout,
             **self.connection_config.get_api_params(**opts),
         )
+
+    @classmethod
+    async def _cls_resume(
+        cls,
+        sandbox_id: str,
+        auto_pause: bool = False,
+        timeout: Optional[int] = None,
+        **opts: Unpack[ApiParams],
+    ):
+        # Skip resume operation for "brd" sandboxes
+        if "brd" in sandbox_id.lower():
+            sandbox_info = await SandboxApi._cls_get_info(
+                sandbox_id=sandbox_id,
+                **opts,
+            )
+            
+            connection_config = ConnectionConfig(**opts)
+            
+            # Get SSH connection details
+            ssh_info = await SandboxApi._get_ssh(
+                sandbox_id=sandbox_id,
+                **opts,
+            )
+
+            # Parse SSH connection details from the connect command
+            pattern = r'ssh\s+-p\s+(\d+).*?\s+([^@\s]+)@([\w\.-]+)'
+            ssh_match = re.search(pattern, ssh_info.connect_command)
+            if ssh_match:
+                ssh_port = int(ssh_match.group(1))
+                ssh_username = ssh_match.group(2)
+                ssh_host = ssh_match.group(3)
+                ssh_password = ssh_info.auth_password
+            else:
+                raise Exception("Could not parse SSH connection details")
+            
+            return cls(
+                sandbox_id=sandbox_id,
+                envd_version=sandbox_info.envd_version,
+                envd_access_token=sandbox_info._envd_access_token,
+                connection_config=connection_config,
+                ssh_host=ssh_host,
+                ssh_port=ssh_port,
+                ssh_username=ssh_username,
+                ssh_password=ssh_password,
+            )
+        else:
+            timeout = timeout or cls.default_sandbox_timeout
+            sandbox = await SandboxApi._cls_resume(
+                sandbox_id=sandbox_id,
+                auto_pause=auto_pause,
+                timeout=timeout,
+                **opts,
+            )
+
+            connection_headers = {}
+            envd_access_token = sandbox.envd_access_token
+            if envd_access_token is not None and not isinstance(envd_access_token, Unset):
+                connection_headers["X-Access-Token"] = envd_access_token
+
+            connection_config = ConnectionConfig(
+                extra_sandbox_headers=connection_headers,
+                **opts,
+            )
+
+            return cls(
+                sandbox_id=sandbox_id,
+                connection_config=connection_config,
+                envd_version=sandbox.envd_version,
+                envd_access_token=envd_access_token,
+            )
 
     @overload
     async def pause(
