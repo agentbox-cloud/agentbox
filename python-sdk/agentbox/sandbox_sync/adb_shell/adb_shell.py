@@ -48,7 +48,6 @@ class ADBShell:
         else:
             print("Failed to connect to ADB shell: device not available")
 
-
     def connect(self):
         if self._active:
             return
@@ -106,28 +105,26 @@ class ADBShell:
     def install(self, apk_path: str, reinstall: bool = False):
         """安装应用"""
         if reinstall:
-            self._device.shell(f"pm install -r {apk_path}")
+            return self._device.shell(f"pm install -r {apk_path}")
         else:
-            self._device.shell(f"pm install {apk_path}")
+            return self._device.shell(f"pm install {apk_path}")
 
     def uninstall(self, package_name: str):
         """卸载应用"""
-        self._device.shell(f"pm uninstall {package_name}")
+        return self._device.shell(f"pm uninstall {package_name}")
 
     def close(self):
         self._active = False
-        self._device.close()
+        if self._device:
+            self._device.close()
+            self._device = None
 
 
     def _get_adb_public_info(self):
         """获取adb连接信息"""
-        config_dict = self.connection_config.__dict__
-        config_dict.pop("access_token", None)
-        config_dict.pop("api_url", None)
-
         info = SandboxApi._get_adb_public_info(
             sandbox_id = self.sandbox_id,
-            **config_dict,
+            **self.connection_config.get_api_params(),
             )
         # print(vars(info))
         self.host = info.adb_ip
