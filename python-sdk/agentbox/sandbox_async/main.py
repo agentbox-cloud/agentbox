@@ -225,7 +225,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
 
             self._filesystem = Filesystem(
                 self.envd_api_url,
-                self._envd_version,
+                str(self._envd_version) if self._envd_version is not None else None,
                 self.connection_config,
                 self._transport._pool,
                 self._envd_api,
