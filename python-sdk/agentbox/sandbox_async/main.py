@@ -780,20 +780,6 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
 
         return self.sandbox_id
 
-    async def get_info(  
-        self,
-        **opts: Unpack[ApiParams],
-    ) -> SandboxInfo:
-        """
-        Get sandbox information like sandbox ID, template, metadata, started at/end at date.
-        :param request_timeout: Timeout for the request in **seconds**
-        :return: Sandbox info
-        """
-        return await SandboxApi._cls_get_info(
-            sandbox_id=self.sandbox_id,
-            **self.connection_config.get_api_params(**opts),
-        )
-    
     @overload
     async def get_info(
         self,
