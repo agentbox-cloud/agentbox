@@ -103,34 +103,28 @@ class ADBShell:
     async def make_dir(self, path: str):
         await self._device.shell(f"mkdir -p {path}")
 
-    async def watch_dir(self, path: str):
-        raise NotImplementedError("watch_dir is not implemented for adb_shell.")
-
     async def install(self, apk_path: str, reinstall: bool = False):
         """安装应用"""
         if reinstall:
-            await self._device.shell(f"pm install -r {apk_path}")
+            return await self._device.shell(f"pm install -r {apk_path}")
         else:
-            await self._device.shell(f"pm install {apk_path}")
+            return await self._device.shell(f"pm install {apk_path}")
 
     async def uninstall(self, package_name: str):
         """卸载应用"""
-        await self._device.shell(f"pm uninstall {package_name}")
+        return await self._device.shell(f"pm uninstall {package_name}")
 
     async def close(self):
         self._active = False
-        await self._device.close()
+        if self._device:
+            await self._device.close()
 
 
     async def _get_adb_public_info(self):
         """获取adb连接信息"""
-        config_dict = self.connection_config.__dict__
-        config_dict.pop("access_token", None)
-        config_dict.pop("api_url", None)
-
         info = await SandboxApi._get_adb_public_info(
             sandbox_id = self.sandbox_id,
-            **config_dict,
+            **self.connection_config.get_api_params(),
             )
         self.host = info.adb_ip
         self.port = info.adb_port
