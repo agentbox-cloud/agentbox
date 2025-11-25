@@ -21,6 +21,8 @@ packaging = ">=24.1"
 typing-extensions = ">=4.1.0"
 paramiko = "^3.5.1"
 adb_shell = ">=0.4.4"
+aiofiles = ">=0.4.0"
+async-timeout = ">=3.0.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.7.0"
