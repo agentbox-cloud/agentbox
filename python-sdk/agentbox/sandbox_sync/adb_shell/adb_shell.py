@@ -1,12 +1,11 @@
 import traceback
 from typing import Optional
 import time
-from importlib.resources import files
-from adb_shell.adb_device import AdbDeviceTcp
 from agentbox.sandbox_sync.sandbox_api import SandboxApi
+from adb_shell.adb_device_async import AdbDeviceTcpAsync
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 from agentbox.connection_config import ConnectionConfig
-
+from agentbox.async_runner import async_runner
 
 def _retry(func, max_retries=1, delay=1, name=""):
     for attempt in range(max_retries):
@@ -39,14 +38,19 @@ class ADBShell:
         """创建一个新的连接"""
         self._get_adb_public_info()
         time.sleep(1)
-        device = AdbDeviceTcp(self.host, self.port)
-        # 判断connect是否成功
-        device.connect(rsa_keys=[self.signer], auth_timeout_s=self.auth_timeout_s)
+        device = AdbDeviceTcpAsync(self.host, self.port)
+        # 调用异步 connect()
+        async def do_connect():
+            await device.connect(rsa_keys=[self.signer],
+                                 auth_timeout_s=self.auth_timeout_s)
+            return device
+
+        device = async_runner.run(do_connect())
+
         if device.available:
-            # print("ADB 连接成功")
             self._device = device
         else:
-            print("Failed to connect to ADB shell: device not available")
+            raise Exception("ADB device not available")
 
     def connect(self):
         if self._active:
@@ -54,28 +58,32 @@ class ADBShell:
         """adb_shell直连"""
         _retry(self._adb_connect, max_retries=3, delay=1, name="adb_shell connect")
         if self._device and self._device.available:
-            # print("ADB 首次连接成功")
             self._active = True
         else:
             raise Exception("Failed to connect to ADB shell: device not available")
 
     def shell(self, command: str, timeout: Optional[float] = None) -> str:
         """执行命令并自动管理连接"""
+        async def do_shell():
+            return await self._device.shell(command, timeout_s=timeout)
+
         try:
-            return self._device.shell(command, timeout_s=timeout)
+            return async_runner.run(do_shell())
         except Exception:
-            # 可能是连接断开，尝试重连一次
+            # 尝试重连
             if not self._device or not self._device.available:
                 _retry(self._adb_connect, max_retries=1, delay=1, name="adb_shell reconnect")
-            if self._device.available:
-                return self._device.shell(command, timeout_s=timeout)
-            raise Exception("Failed to reconnect to ADB shell: device not available")
+            return async_runner.run(do_shell())
 
     def push(self, local: str, remote: str):
-        self._device.push(local, remote)
+        async def do_push():
+            await self._device.push(local, remote)
+        return async_runner.run(do_push())
 
     def pull(self, remote: str, local: str):
-        self._device.pull(remote, local)
+        async def do_pull():
+            await self._device.pull(remote, local)
+        return async_runner.run(do_pull())
 
     # def list(self, path: str = ".") -> List[Any]:
     #     return self._device.listdir(path)
@@ -91,34 +99,25 @@ class ADBShell:
             return False
 
     def remove(self, path: str):
-        self._device.shell(f"rm -rf {path}")
+        self.shell(f"rm -rf {path}")
 
     def rename(self, src: str, dst: str):
-        self._device.shell(f"mv {src} {dst}")
+        self.shell(f"mv {src} {dst}")
 
     def make_dir(self, path: str):
-        self._device.shell(f"mkdir -p {path}")
-
-    def watch_dir(self, path: str):
-        raise NotImplementedError("watch_dir is not implemented for adb_shell.")
+        self.shell(f"mkdir -p {path}")
 
     def install(self, apk_path: str, reinstall: bool = False):
-        """安装应用"""
-        if reinstall:
-            return self._device.shell(f"pm install -r {apk_path}")
-        else:
-            return self._device.shell(f"pm install {apk_path}")
+        cmd = f"pm install {'-r ' if reinstall else ''}{apk_path}"
+        return self.shell(cmd)
 
     def uninstall(self, package_name: str):
-        """卸载应用"""
-        return self._device.shell(f"pm uninstall {package_name}")
+        return self.shell(f"pm uninstall {package_name}")
 
     def close(self):
         self._active = False
         if self._device:
-            self._device.close()
-            self._device = None
-
+            async_runner.run(self._device.close())
 
     def _get_adb_public_info(self):
         """获取adb连接信息"""
@@ -126,7 +125,6 @@ class ADBShell:
             sandbox_id = self.sandbox_id,
             **self.connection_config.get_api_params(),
             )
-        # print(vars(info))
         self.host = info.adb_ip
         self.port = info.adb_port
         self.signer = PythonRSASigner(pub=info.public_key, priv=info.private_key)
