@@ -126,14 +126,10 @@ class ADBShell:
             async_runner.run(self._device.close())
 
     def _get_adb_public_info(self):
-        config_dict = self.connection_config.__dict__
-        config_dict.pop("access_token", None)
-        config_dict.pop("api_url", None)
-
         info = SandboxApi._get_adb_public_info(
-            sandbox_id=self.sandbox_id,
-            **config_dict,
-        )
+            sandbox_id = self.sandbox_id,
+            **self.connection_config.get_api_params(),
+            )
         self.host = info.adb_ip
         self.port = info.adb_port
         self.signer = PythonRSASigner(pub=info.public_key, priv=info.private_key)

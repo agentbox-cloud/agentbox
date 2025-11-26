@@ -119,18 +119,15 @@ class ADBShell:
 
     async def close(self):
         self._active = False
-        await self._device.close()
+        if self._device:
+            await self._device.close()
 
 
     async def _get_adb_public_info(self):
         """获取adb连接信息"""
-        config_dict = self.connection_config.__dict__
-        config_dict.pop("access_token", None)
-        config_dict.pop("api_url", None)
-
         info = await SandboxApi._get_adb_public_info(
             sandbox_id = self.sandbox_id,
-            **config_dict,
+            **self.connection_config.get_api_params(),
             )
         self.host = info.adb_ip
         self.port = info.adb_port
