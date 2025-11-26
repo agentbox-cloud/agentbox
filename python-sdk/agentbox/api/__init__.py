@@ -32,9 +32,6 @@ def handle_api_exception(e: Response):
         body = {}
 
     if e.status_code == 429:
-        if "message" in body:
-            return RateLimitException(f"{e.status_code}: {body['message']}")
-        else:
             return RateLimitException(
                 f"{e.status_code}: Rate limit exceeded, please try again later."
             )
