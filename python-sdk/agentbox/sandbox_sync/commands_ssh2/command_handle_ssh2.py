@@ -1,4 +1,4 @@
-from typing import Optional, Callable, Generator, Union, Tuple, IO, LiteralString
+from typing import Optional, Callable, Generator, Union, Tuple, IO
 from paramiko.channel import ChannelFile
 from paramiko import SSHClient
 import os

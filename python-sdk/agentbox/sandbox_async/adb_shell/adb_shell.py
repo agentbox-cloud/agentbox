@@ -1,6 +1,6 @@
 import traceback,asyncio
 from typing import Optional
-from adb_shell.adb_device import AdbDeviceTcp
+from adb_shell.adb_device_async import AdbDeviceTcpAsync
 from agentbox.sandbox_async.sandbox_api import SandboxApi
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 from agentbox.connection_config import ConnectionConfig
@@ -42,9 +42,9 @@ class ADBShell:
         """创建一个新的连接"""
         await self._get_adb_public_info()
         await asyncio.sleep(1)
-        device = AdbDeviceTcp(self.host, self.port)
+        device = AdbDeviceTcpAsync(self.host, self.port)
         # 判断connect是否成功
-        device.connect(rsa_keys=[self.signer], auth_timeout_s=self.auth_timeout_s)
+        await device.connect(rsa_keys=[self.signer], auth_timeout_s=self.auth_timeout_s)
         if device.available:
             # print("ADB 连接成功")
             self._device = device
@@ -65,21 +65,21 @@ class ADBShell:
     async def shell(self, command: str, timeout: Optional[float] = None) -> str:
         """执行命令并自动管理连接"""
         try:
-            return self._device.shell(command, timeout_s=timeout)
+            return await self._device.shell(command, timeout_s=timeout)
         except Exception as e:
             # 可能是连接断开，尝试重连一次
             if not self._device or not self._device.available:
                 await _retry_async(self._adb_connect, max_retries=1, delay=1, name="adb_shell reconnect")
             if self._device and self._device.available:
                 self._active = True
-                return self._device.shell(command, timeout_s=timeout)
+                return await self._device.shell(command, timeout_s=timeout)
             raise Exception("Failed to connect to ADB shell: device not available: {}".format(e))
 
     async def push(self, local: str, remote: str):
-        self._device.push(local, remote)
+        await self._device.push(local, remote)
 
     async def pull(self, remote: str, local: str):
-        self._device.pull(remote, local)
+        await self._device.pull(remote, local)
 
     # def list(self, path: str = ".") -> List[Any]:
     #     return self._device.listdir(path)
@@ -95,13 +95,13 @@ class ADBShell:
             return False
 
     async def remove(self, path: str):
-        self._device.shell(f"rm -rf {path}")
+        await self._device.shell(f"rm -rf {path}")
 
     async def rename(self, src: str, dst: str):
-        self._device.shell(f"mv {src} {dst}")
+        await self._device.shell(f"mv {src} {dst}")
 
     async def make_dir(self, path: str):
-        self._device.shell(f"mkdir -p {path}")
+        await self._device.shell(f"mkdir -p {path}")
 
     async def watch_dir(self, path: str):
         raise NotImplementedError("watch_dir is not implemented for adb_shell.")
@@ -109,17 +109,17 @@ class ADBShell:
     async def install(self, apk_path: str, reinstall: bool = False):
         """安装应用"""
         if reinstall:
-            self._device.shell(f"pm install -r {apk_path}")
+            await self._device.shell(f"pm install -r {apk_path}")
         else:
-            self._device.shell(f"pm install {apk_path}")
+            await self._device.shell(f"pm install {apk_path}")
 
     async def uninstall(self, package_name: str):
         """卸载应用"""
-        self._device.shell(f"pm uninstall {package_name}")
+        await self._device.shell(f"pm uninstall {package_name}")
 
     async def close(self):
         self._active = False
-        self._device.close()
+        await self._device.close()
 
 
     async def _get_adb_public_info(self):
