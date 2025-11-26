@@ -106,18 +106,17 @@ class ADBShell:
     async def install(self, apk_path: str, reinstall: bool = False):
         """安装应用"""
         if reinstall:
-            return await self._device.shell(f"pm install -r {apk_path}")
+            await self._device.shell(f"pm install -r {apk_path}")
         else:
-            return await self._device.shell(f"pm install {apk_path}")
+            await self._device.shell(f"pm install {apk_path}")
 
     async def uninstall(self, package_name: str):
         """卸载应用"""
-        return await self._device.shell(f"pm uninstall {package_name}")
+        await self._device.shell(f"pm uninstall {package_name}")
 
     async def close(self):
         self._active = False
-        if self._device:
-            await self._device.close()
+        await self._device.close()
 
 
     async def _get_adb_public_info(self):

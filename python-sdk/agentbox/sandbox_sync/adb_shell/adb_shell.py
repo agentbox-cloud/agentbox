@@ -73,13 +73,16 @@ class ADBShell:
             # 尝试重连
             if not self._device or not self._device.available:
                 _retry(self._adb_connect, max_retries=1, delay=1, name="adb_shell reconnect")
+
             return async_runner.run(do_shell())
 
+    # 同步 push()
     def push(self, local: str, remote: str):
         async def do_push():
             await self._device.push(local, remote)
         return async_runner.run(do_push())
 
+    # 同步 pull()
     def pull(self, remote: str, local: str):
         async def do_pull():
             await self._device.pull(remote, local)
@@ -98,6 +101,7 @@ class ADBShell:
         except Exception:
             return False
 
+    # 其他方法保持同步封装（删掉 await）
     def remove(self, path: str):
         self.shell(f"rm -rf {path}")
 
@@ -109,10 +113,10 @@ class ADBShell:
 
     def install(self, apk_path: str, reinstall: bool = False):
         cmd = f"pm install {'-r ' if reinstall else ''}{apk_path}"
-        return self.shell(cmd)
+        self.shell(cmd)
 
     def uninstall(self, package_name: str):
-        return self.shell(f"pm uninstall {package_name}")
+        self.shell(f"pm uninstall {package_name}")
 
     def close(self):
         self._active = False
