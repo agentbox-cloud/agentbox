@@ -1,46 +1,46 @@
 from collections.abc import Mapping
-from typing import Any, TypeVar
+from typing import Any, TypeVar, Union
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="ConnectSandbox")
+from ..types import UNSET, Unset
+
+T = TypeVar("T", bound="SignInWithOAuthResponse")
 
 
 @_attrs_define
-class ConnectSandbox:
+class SignInWithOAuthResponse:
     """
     Attributes:
-        timeout (int): Timeout in seconds from the current time after which the sandbox should expire
+        url (Union[Unset, str]): url for redirect
     """
 
-    timeout: int
+    url: Union[Unset, str] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        timeout = self.timeout
+        url = self.url
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update(
-            {
-                "timeout": timeout,
-            }
-        )
+        field_dict.update({})
+        if url is not UNSET:
+            field_dict["url"] = url
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        timeout = d.pop("timeout")
+        url = d.pop("url", UNSET)
 
-        connect_sandbox = cls(
-            timeout=timeout,
+        sign_in_with_o_auth_response = cls(
+            url=url,
         )
 
-        connect_sandbox.additional_properties = d
-        return connect_sandbox
+        sign_in_with_o_auth_response.additional_properties = d
+        return sign_in_with_o_auth_response
 
     @property
     def additional_keys(self) -> list[str]:

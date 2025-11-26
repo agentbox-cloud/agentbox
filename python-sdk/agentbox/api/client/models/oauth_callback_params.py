@@ -4,27 +4,37 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="ConnectSandbox")
+T = TypeVar("T", bound="OauthCallbackParams")
 
 
 @_attrs_define
-class ConnectSandbox:
+class OauthCallbackParams:
     """
     Attributes:
-        timeout (int): Timeout in seconds from the current time after which the sandbox should expire
+        code (str): google / github code
+        provider (str): google / github
+        return_to (str): redirect url
     """
 
-    timeout: int
+    code: str
+    provider: str
+    return_to: str
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        timeout = self.timeout
+        code = self.code
+
+        provider = self.provider
+
+        return_to = self.return_to
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "timeout": timeout,
+                "code": code,
+                "provider": provider,
+                "returnTo": return_to,
             }
         )
 
@@ -33,14 +43,20 @@ class ConnectSandbox:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        timeout = d.pop("timeout")
+        code = d.pop("code")
 
-        connect_sandbox = cls(
-            timeout=timeout,
+        provider = d.pop("provider")
+
+        return_to = d.pop("returnTo")
+
+        oauth_callback_params = cls(
+            code=code,
+            provider=provider,
+            return_to=return_to,
         )
 
-        connect_sandbox.additional_properties = d
-        return connect_sandbox
+        oauth_callback_params.additional_properties = d
+        return oauth_callback_params
 
     @property
     def additional_keys(self) -> list[str]:

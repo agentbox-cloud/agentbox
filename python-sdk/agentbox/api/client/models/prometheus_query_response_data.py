@@ -4,43 +4,28 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="ConnectSandbox")
+T = TypeVar("T", bound="PrometheusQueryResponseData")
 
 
 @_attrs_define
-class ConnectSandbox:
-    """
-    Attributes:
-        timeout (int): Timeout in seconds from the current time after which the sandbox should expire
-    """
+class PrometheusQueryResponseData:
+    """Prometheus response data (varies by query)"""
 
-    timeout: int
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        timeout = self.timeout
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update(
-            {
-                "timeout": timeout,
-            }
-        )
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        timeout = d.pop("timeout")
+        prometheus_query_response_data = cls()
 
-        connect_sandbox = cls(
-            timeout=timeout,
-        )
-
-        connect_sandbox.additional_properties = d
-        return connect_sandbox
+        prometheus_query_response_data.additional_properties = d
+        return prometheus_query_response_data
 
     @property
     def additional_keys(self) -> list[str]:

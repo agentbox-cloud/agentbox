@@ -1,30 +1,40 @@
 from collections.abc import Mapping
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="ConnectSandbox")
+T = TypeVar("T", bound="Recipients")
 
 
 @_attrs_define
-class ConnectSandbox:
+class Recipients:
     """
     Attributes:
-        timeout (int): Timeout in seconds from the current time after which the sandbox should expire
+        emails (list[str]): emails of custom contacts
+        include_team (bool): include team members
+        phones (list[str]): phones of custom contacts
     """
 
-    timeout: int
+    emails: list[str]
+    include_team: bool
+    phones: list[str]
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        timeout = self.timeout
+        emails = self.emails
+
+        include_team = self.include_team
+
+        phones = self.phones
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "timeout": timeout,
+                "emails": emails,
+                "include_team": include_team,
+                "phones": phones,
             }
         )
 
@@ -33,14 +43,20 @@ class ConnectSandbox:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        timeout = d.pop("timeout")
+        emails = cast(list[str], d.pop("emails"))
 
-        connect_sandbox = cls(
-            timeout=timeout,
+        include_team = d.pop("include_team")
+
+        phones = cast(list[str], d.pop("phones"))
+
+        recipients = cls(
+            emails=emails,
+            include_team=include_team,
+            phones=phones,
         )
 
-        connect_sandbox.additional_properties = d
-        return connect_sandbox
+        recipients.additional_properties = d
+        return recipients
 
     @property
     def additional_keys(self) -> list[str]:

@@ -1,30 +1,37 @@
 from collections.abc import Mapping
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="ConnectSandbox")
+from ..models.bulk_action_request_action import BulkActionRequestAction
+
+T = TypeVar("T", bound="BulkActionRequest")
 
 
 @_attrs_define
-class ConnectSandbox:
+class BulkActionRequest:
     """
     Attributes:
-        timeout (int): Timeout in seconds from the current time after which the sandbox should expire
+        action (BulkActionRequestAction): Action
+        message_ids (list[str]):
     """
 
-    timeout: int
+    action: BulkActionRequestAction
+    message_ids: list[str]
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        timeout = self.timeout
+        action = self.action.value
+
+        message_ids = self.message_ids
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "timeout": timeout,
+                "action": action,
+                "message_ids": message_ids,
             }
         )
 
@@ -33,14 +40,17 @@ class ConnectSandbox:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        timeout = d.pop("timeout")
+        action = BulkActionRequestAction(d.pop("action"))
 
-        connect_sandbox = cls(
-            timeout=timeout,
+        message_ids = cast(list[str], d.pop("message_ids"))
+
+        bulk_action_request = cls(
+            action=action,
+            message_ids=message_ids,
         )
 
-        connect_sandbox.additional_properties = d
-        return connect_sandbox
+        bulk_action_request.additional_properties = d
+        return bulk_action_request
 
     @property
     def additional_keys(self) -> list[str]:

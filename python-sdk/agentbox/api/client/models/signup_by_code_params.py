@@ -4,27 +4,37 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="ConnectSandbox")
+T = TypeVar("T", bound="SignupByCodeParams")
 
 
 @_attrs_define
-class ConnectSandbox:
+class SignupByCodeParams:
     """
     Attributes:
-        timeout (int): Timeout in seconds from the current time after which the sandbox should expire
+        code (str): Code for verification
+        email (str): email of the user
+        password (str): Password of the user
     """
 
-    timeout: int
+    code: str
+    email: str
+    password: str
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        timeout = self.timeout
+        code = self.code
+
+        email = self.email
+
+        password = self.password
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "timeout": timeout,
+                "code": code,
+                "email": email,
+                "password": password,
             }
         )
 
@@ -33,14 +43,20 @@ class ConnectSandbox:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        timeout = d.pop("timeout")
+        code = d.pop("code")
 
-        connect_sandbox = cls(
-            timeout=timeout,
+        email = d.pop("email")
+
+        password = d.pop("password")
+
+        signup_by_code_params = cls(
+            code=code,
+            email=email,
+            password=password,
         )
 
-        connect_sandbox.additional_properties = d
-        return connect_sandbox
+        signup_by_code_params.additional_properties = d
+        return signup_by_code_params
 
     @property
     def additional_keys(self) -> list[str]:

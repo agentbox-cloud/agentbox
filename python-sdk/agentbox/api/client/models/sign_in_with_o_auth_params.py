@@ -4,27 +4,32 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="ConnectSandbox")
+T = TypeVar("T", bound="SignInWithOAuthParams")
 
 
 @_attrs_define
-class ConnectSandbox:
+class SignInWithOAuthParams:
     """
     Attributes:
-        timeout (int): Timeout in seconds from the current time after which the sandbox should expire
+        provider (str): github / google
+        return_to (str): callback redirect url
     """
 
-    timeout: int
+    provider: str
+    return_to: str
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        timeout = self.timeout
+        provider = self.provider
+
+        return_to = self.return_to
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "timeout": timeout,
+                "provider": provider,
+                "returnTo": return_to,
             }
         )
 
@@ -33,14 +38,17 @@ class ConnectSandbox:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        timeout = d.pop("timeout")
+        provider = d.pop("provider")
 
-        connect_sandbox = cls(
-            timeout=timeout,
+        return_to = d.pop("returnTo")
+
+        sign_in_with_o_auth_params = cls(
+            provider=provider,
+            return_to=return_to,
         )
 
-        connect_sandbox.additional_properties = d
-        return connect_sandbox
+        sign_in_with_o_auth_params.additional_properties = d
+        return sign_in_with_o_auth_params
 
     @property
     def additional_keys(self) -> list[str]:

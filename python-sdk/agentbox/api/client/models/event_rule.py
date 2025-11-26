@@ -1,46 +1,65 @@
 from collections.abc import Mapping
-from typing import Any, TypeVar
+from typing import Any, TypeVar, Union
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="ConnectSandbox")
+from ..types import UNSET, Unset
+
+T = TypeVar("T", bound="EventRule")
 
 
 @_attrs_define
-class ConnectSandbox:
+class EventRule:
     """
     Attributes:
-        timeout (int): Timeout in seconds from the current time after which the sandbox should expire
+        key (str): key
+        value (str): value
+        operator (Union[Unset, str]): operator
     """
 
-    timeout: int
+    key: str
+    value: str
+    operator: Union[Unset, str] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        timeout = self.timeout
+        key = self.key
+
+        value = self.value
+
+        operator = self.operator
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "timeout": timeout,
+                "key": key,
+                "value": value,
             }
         )
+        if operator is not UNSET:
+            field_dict["operator"] = operator
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        timeout = d.pop("timeout")
+        key = d.pop("key")
 
-        connect_sandbox = cls(
-            timeout=timeout,
+        value = d.pop("value")
+
+        operator = d.pop("operator", UNSET)
+
+        event_rule = cls(
+            key=key,
+            value=value,
+            operator=operator,
         )
 
-        connect_sandbox.additional_properties = d
-        return connect_sandbox
+        event_rule.additional_properties = d
+        return event_rule
 
     @property
     def additional_keys(self) -> list[str]:

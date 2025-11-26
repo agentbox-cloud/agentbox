@@ -6,6 +6,7 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 from dateutil.parser import isoparse
 
+from ..models.env_type import EnvType
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
@@ -24,13 +25,16 @@ class Template:
         cpu_count (int): CPU cores for the sandbox
         created_at (datetime.datetime): Time when the template was created
         created_by (Union['TeamUser', None]):
+        env_type (EnvType): Type of the env
         last_spawned_at (datetime.datetime): Time when the template was last used
-        memory_mb (int): Memory for the sandbox in MB
+        memory_mb (int): Memory for the sandbox in MiB
         public (bool): Whether the template is public or only accessible by the team
         spawn_count (int): Number of times the template was used
         template_id (str): Identifier of the template
         updated_at (datetime.datetime): Time when the template was last updated
         aliases (Union[Unset, list[str]]): Aliases of the template
+        disk_size_mb (Union[Unset, int]): Disk size for the sandbox in MiB
+        envd_version (Union[Unset, str]): Version of the envd running in the sandbox
     """
 
     build_count: int
@@ -38,6 +42,7 @@ class Template:
     cpu_count: int
     created_at: datetime.datetime
     created_by: Union["TeamUser", None]
+    env_type: EnvType
     last_spawned_at: datetime.datetime
     memory_mb: int
     public: bool
@@ -45,6 +50,8 @@ class Template:
     template_id: str
     updated_at: datetime.datetime
     aliases: Union[Unset, list[str]] = UNSET
+    disk_size_mb: Union[Unset, int] = UNSET
+    envd_version: Union[Unset, str] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -64,6 +71,8 @@ class Template:
         else:
             created_by = self.created_by
 
+        env_type = self.env_type.value
+
         last_spawned_at = self.last_spawned_at.isoformat()
 
         memory_mb = self.memory_mb
@@ -80,6 +89,10 @@ class Template:
         if not isinstance(self.aliases, Unset):
             aliases = self.aliases
 
+        disk_size_mb = self.disk_size_mb
+
+        envd_version = self.envd_version
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -89,6 +102,7 @@ class Template:
                 "cpuCount": cpu_count,
                 "createdAt": created_at,
                 "createdBy": created_by,
+                "envType": env_type,
                 "lastSpawnedAt": last_spawned_at,
                 "memoryMB": memory_mb,
                 "public": public,
@@ -99,6 +113,10 @@ class Template:
         )
         if aliases is not UNSET:
             field_dict["aliases"] = aliases
+        if disk_size_mb is not UNSET:
+            field_dict["diskSizeMB"] = disk_size_mb
+        if envd_version is not UNSET:
+            field_dict["envdVersion"] = envd_version
 
         return field_dict
 
@@ -130,6 +148,8 @@ class Template:
 
         created_by = _parse_created_by(d.pop("createdBy"))
 
+        env_type = EnvType(d.pop("envType"))
+
         last_spawned_at = isoparse(d.pop("lastSpawnedAt"))
 
         memory_mb = d.pop("memoryMB")
@@ -144,12 +164,17 @@ class Template:
 
         aliases = cast(list[str], d.pop("aliases", UNSET))
 
+        disk_size_mb = d.pop("diskSizeMB", UNSET)
+
+        envd_version = d.pop("envdVersion", UNSET)
+
         template = cls(
             build_count=build_count,
             build_id=build_id,
             cpu_count=cpu_count,
             created_at=created_at,
             created_by=created_by,
+            env_type=env_type,
             last_spawned_at=last_spawned_at,
             memory_mb=memory_mb,
             public=public,
@@ -157,6 +182,8 @@ class Template:
             template_id=template_id,
             updated_at=updated_at,
             aliases=aliases,
+            disk_size_mb=disk_size_mb,
+            envd_version=envd_version,
         )
 
         template.additional_properties = d

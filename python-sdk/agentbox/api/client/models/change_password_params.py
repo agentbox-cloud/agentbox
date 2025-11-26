@@ -4,27 +4,32 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="ConnectSandbox")
+T = TypeVar("T", bound="ChangePasswordParams")
 
 
 @_attrs_define
-class ConnectSandbox:
+class ChangePasswordParams:
     """
     Attributes:
-        timeout (int): Timeout in seconds from the current time after which the sandbox should expire
+        new_password (str): New password
+        password (str): Password of the user
     """
 
-    timeout: int
+    new_password: str
+    password: str
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        timeout = self.timeout
+        new_password = self.new_password
+
+        password = self.password
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "timeout": timeout,
+                "new_password": new_password,
+                "password": password,
             }
         )
 
@@ -33,14 +38,17 @@ class ConnectSandbox:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        timeout = d.pop("timeout")
+        new_password = d.pop("new_password")
 
-        connect_sandbox = cls(
-            timeout=timeout,
+        password = d.pop("password")
+
+        change_password_params = cls(
+            new_password=new_password,
+            password=password,
         )
 
-        connect_sandbox.additional_properties = d
-        return connect_sandbox
+        change_password_params.additional_properties = d
+        return change_password_params
 
     @property
     def additional_keys(self) -> list[str]:

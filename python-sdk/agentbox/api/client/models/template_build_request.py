@@ -4,6 +4,7 @@ from typing import Any, TypeVar, Union
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
+from ..models.env_type import EnvType
 from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="TemplateBuildRequest")
@@ -16,7 +17,8 @@ class TemplateBuildRequest:
         dockerfile (str): Dockerfile for the template
         alias (Union[Unset, str]): Alias of the template
         cpu_count (Union[Unset, int]): CPU cores for the sandbox
-        memory_mb (Union[Unset, int]): Memory for the sandbox in MB
+        env_type (Union[Unset, EnvType]): Type of the env
+        memory_mb (Union[Unset, int]): Memory for the sandbox in MiB
         ready_cmd (Union[Unset, str]): Ready check command to execute in the template after the build
         start_cmd (Union[Unset, str]): Start command to execute in the template after the build
         team_id (Union[Unset, str]): Identifier of the team
@@ -25,6 +27,7 @@ class TemplateBuildRequest:
     dockerfile: str
     alias: Union[Unset, str] = UNSET
     cpu_count: Union[Unset, int] = UNSET
+    env_type: Union[Unset, EnvType] = UNSET
     memory_mb: Union[Unset, int] = UNSET
     ready_cmd: Union[Unset, str] = UNSET
     start_cmd: Union[Unset, str] = UNSET
@@ -37,6 +40,10 @@ class TemplateBuildRequest:
         alias = self.alias
 
         cpu_count = self.cpu_count
+
+        env_type: Union[Unset, str] = UNSET
+        if not isinstance(self.env_type, Unset):
+            env_type = self.env_type.value
 
         memory_mb = self.memory_mb
 
@@ -57,6 +64,8 @@ class TemplateBuildRequest:
             field_dict["alias"] = alias
         if cpu_count is not UNSET:
             field_dict["cpuCount"] = cpu_count
+        if env_type is not UNSET:
+            field_dict["envType"] = env_type
         if memory_mb is not UNSET:
             field_dict["memoryMB"] = memory_mb
         if ready_cmd is not UNSET:
@@ -77,6 +86,13 @@ class TemplateBuildRequest:
 
         cpu_count = d.pop("cpuCount", UNSET)
 
+        _env_type = d.pop("envType", UNSET)
+        env_type: Union[Unset, EnvType]
+        if isinstance(_env_type, Unset):
+            env_type = UNSET
+        else:
+            env_type = EnvType(_env_type)
+
         memory_mb = d.pop("memoryMB", UNSET)
 
         ready_cmd = d.pop("readyCmd", UNSET)
@@ -89,6 +105,7 @@ class TemplateBuildRequest:
             dockerfile=dockerfile,
             alias=alias,
             cpu_count=cpu_count,
+            env_type=env_type,
             memory_mb=memory_mb,
             ready_cmd=ready_cmd,
             start_cmd=start_cmd,
