@@ -1084,7 +1084,7 @@ class Sandbox(SandboxSetup, SandboxApi):
     def pause(
         self,
         request_timeout: Optional[float] = None,
-    ) -> None:
+    ) -> str:
         """
         Pause the sandbox.
 
@@ -1102,7 +1102,7 @@ class Sandbox(SandboxSetup, SandboxApi):
         domain: Optional[str] = None,
         debug: Optional[bool] = None,
         request_timeout: Optional[float] = None,
-    ) -> None:
+    ) -> str:
         """
         Pause a sandbox by its ID.
 
@@ -1120,7 +1120,7 @@ class Sandbox(SandboxSetup, SandboxApi):
     def pause(
         self,
         **opts: Unpack[ApiParams],
-    ) -> None:
+    ) -> str:
         """
         Pause the sandbox.
 
@@ -1132,3 +1132,4 @@ class Sandbox(SandboxSetup, SandboxApi):
             sandbox_id=self.sandbox_id,
             **self._connection_config.get_api_params(**opts),
         )
+        return self.sandbox_id

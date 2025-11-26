@@ -733,7 +733,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
     async def pause(
         self,
         **opts: Unpack[ApiParams],
-    ) -> None:
+    ) -> str:
         """
         Pause the sandbox.
 
@@ -748,7 +748,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
     async def pause(
         sandbox_id: str,
         **opts: Unpack[ApiParams],
-    ) -> None:
+    ) -> str:
         """
         Pause the sandbox specified by sandbox ID.
 
@@ -764,7 +764,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
     async def pause(  
         self,
         **opts: Unpack[ApiParams],
-    ) -> None:
+    ) -> str:
         """
         Pause the sandbox.
 
@@ -772,11 +772,11 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
 
         :return: sandbox ID that can be used to resume the sandbox
         """
-
         await SandboxApi._cls_pause(
             sandbox_id=self.sandbox_id,
             **self.connection_config.get_api_params(**opts),
         )
+        return self.sandbox_id
 
     @overload
     async def get_info(
