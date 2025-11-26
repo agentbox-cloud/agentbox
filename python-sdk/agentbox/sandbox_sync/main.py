@@ -417,7 +417,7 @@ class Sandbox(SandboxSetup, SandboxApi):
         self,
         timeout: Optional[int] = None,
         **opts: Unpack[ApiParams],
-    ):
+    ) -> Self:
         """
         Connect to a sandbox. If the sandbox is paused, it will be automatically resumed.
         Sandbox must be either running or be paused.
@@ -447,7 +447,7 @@ class Sandbox(SandboxSetup, SandboxApi):
         sandbox_id: str,
         timeout: Optional[int] = None,
         **opts: Unpack[ApiParams],
-    ):
+    ) -> Self:
         """
         Connect to a sandbox. If the sandbox is paused, it will be automatically resumed.
         Sandbox must be either running or be paused.
@@ -480,7 +480,7 @@ class Sandbox(SandboxSetup, SandboxApi):
         self,
         timeout: Optional[int] = None,
         **opts: Unpack[ApiParams],
-    ):
+    ) -> Self:
         """
         Connect to a sandbox. If the sandbox is paused, it will be automatically resumed.
         Sandbox must be either running or be paused.
@@ -765,7 +765,7 @@ class Sandbox(SandboxSetup, SandboxApi):
         envs: Optional[Dict[str, str]] = None,
         secure: Optional[bool] = None,
         **opts: Unpack[ApiParams],
-    ):
+    ) -> Self:
         """
         [BETA] This feature is in beta and may change in the future.
 
@@ -815,7 +815,7 @@ class Sandbox(SandboxSetup, SandboxApi):
         envs: Optional[Dict[str, str]],
         secure: bool,
         **opts: Unpack[ApiParams],
-    ):
+    ) -> Self:
         extra_sandbox_headers = {}
 
         if opts.get("debug"):
@@ -887,7 +887,7 @@ class Sandbox(SandboxSetup, SandboxApi):
         sandbox_id: str,
         timeout: Optional[int] = None,
         **opts: Unpack[ApiParams],
-    ):
+    ) -> Self:
         # Skip resume operation for "brd" sandboxes
         if "brd" in sandbox_id.lower():
             sandbox_info = SandboxApi._cls_get_info(
@@ -954,7 +954,7 @@ class Sandbox(SandboxSetup, SandboxApi):
         auto_pause: bool = False, 
         timeout: Optional[int] = None, 
         **opts: Unpack[ApiParams]
-        ):
+        ) -> Self:
         ...
 
     @overload
@@ -965,7 +965,7 @@ class Sandbox(SandboxSetup, SandboxApi):
         auto_pause: bool = False,
         timeout: Optional[int] = None,
         **opts: Unpack[ApiParams],
-    ):
+    ) -> Self:
         """
         Resume the sandbox.
 
@@ -990,7 +990,7 @@ class Sandbox(SandboxSetup, SandboxApi):
         auto_pause: bool = False,
         timeout: Optional[int] = None,
         **opts: Unpack[ApiParams],
-    ):
+    ) -> Self:
         """
         Resume the sandbox.
 
@@ -1017,7 +1017,7 @@ class Sandbox(SandboxSetup, SandboxApi):
         auto_pause: bool = False,
         timeout: Optional[int] = None,
         **opts: Unpack[ApiParams],
-    ):
+    ) -> Self:
         # Skip resume operation for "brd" sandboxes
         if "brd" in sandbox_id.lower():
             sandbox_info = SandboxApi._cls_get_info(
@@ -1084,7 +1084,7 @@ class Sandbox(SandboxSetup, SandboxApi):
     def pause(
         self,
         request_timeout: Optional[float] = None,
-    ) -> str:
+    ) -> None:
         """
         Pause the sandbox.
 
@@ -1102,7 +1102,7 @@ class Sandbox(SandboxSetup, SandboxApi):
         domain: Optional[str] = None,
         debug: Optional[bool] = None,
         request_timeout: Optional[float] = None,
-    ) -> str:
+    )  -> None:
         """
         Pause a sandbox by its ID.
 
@@ -1120,7 +1120,7 @@ class Sandbox(SandboxSetup, SandboxApi):
     def pause(
         self,
         **opts: Unpack[ApiParams],
-    ) -> bool:
+    ) -> None:
         """
         Pause the sandbox.
 
@@ -1128,7 +1128,7 @@ class Sandbox(SandboxSetup, SandboxApi):
 
         :return: sandbox ID that can be used to resume the sandbox
         """
-        return SandboxApi._cls_pause(
+        SandboxApi._cls_pause(
             sandbox_id=self.sandbox_id,
             **self._connection_config.get_api_params(**opts),
         )

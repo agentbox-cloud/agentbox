@@ -6,7 +6,7 @@ import json
 from datetime import datetime
 
 from typing import Dict, Optional, TypedDict, overload, List, Union
-from typing_extensions import Unpack
+from typing_extensions import Unpack, Self
 from packaging.version import Version
 
 from agentbox.api.client.types import Unset
@@ -292,7 +292,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         envs: Optional[Dict[str, str]] = None,
         secure: Optional[bool] = None,
         **opts: Unpack[ApiParams],
-    ):
+    ) -> Self:
         """
         Create a new sandbox.
 
@@ -326,7 +326,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         self,
         timeout: Optional[int] = None,
         **opts: Unpack[ApiParams],
-    ):
+    ) -> Self:
         """
         Connect to a sandbox. If the sandbox is paused, it will be automatically resumed.
         Sandbox must be either running or be paused.
@@ -356,7 +356,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         sandbox_id: str,
         timeout: Optional[int] = None,
         **opts: Unpack[ApiParams],
-    ):
+    ) -> Self:
         """
         Connect to a sandbox. If the sandbox is paused, it will be automatically resumed.
         Sandbox must be either running or be paused.
@@ -389,7 +389,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         self,
         timeout: Optional[int] = None,
         **opts: Unpack[ApiParams],
-    ):
+    ) -> Self:
         """
         Connect to a sandbox. If the sandbox is paused, it will be automatically resumed.
         Sandbox must be either running or be paused.
@@ -534,7 +534,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         sandbox_id: str,
         timeout: Optional[int] = None,
         **opts: Unpack[ApiParams],
-    ):
+    ) -> Self:
         # Skip resume operation for "brd" sandboxes
         if "brd" in sandbox_id.lower():
             sandbox_info = await SandboxApi._cls_get_info(
@@ -602,7 +602,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         auto_pause: bool = False,
         timeout: Optional[int] = None,
         **opts: Unpack[ApiParams],
-    ):
+    ) -> Self:
         ...
 
     @overload
@@ -613,7 +613,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         auto_pause: bool = False,
         timeout: Optional[int] = None,
         **opts: Unpack[ApiParams],
-    ):
+    ) -> Self:
         """
         Resume the sandbox.
 
@@ -639,7 +639,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         auto_pause: bool = False,
         timeout: Optional[int] = None,
         **opts: Unpack[ApiParams],
-    ):
+    ) -> Self:
         """
         Resume the sandbox.
 
@@ -666,7 +666,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         auto_pause: bool = False,
         timeout: Optional[int] = None,
         **opts: Unpack[ApiParams],
-    ):
+    ) -> Self:
         # Skip resume operation for "brd" sandboxes
         if "brd" in sandbox_id.lower():
             sandbox_info = await SandboxApi._cls_get_info(
@@ -733,7 +733,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
     async def pause(
         self,
         **opts: Unpack[ApiParams],
-    ) -> str:
+    ) -> None:
         """
         Pause the sandbox.
 
@@ -748,7 +748,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
     async def pause(
         sandbox_id: str,
         **opts: Unpack[ApiParams],
-    ) -> str:
+    ) -> None:
         """
         Pause the sandbox specified by sandbox ID.
 
@@ -764,7 +764,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
     async def pause(  
         self,
         **opts: Unpack[ApiParams],
-    ) -> str:
+    ) -> None:
         """
         Pause the sandbox.
 
@@ -777,8 +777,6 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
             sandbox_id=self.sandbox_id,
             **self.connection_config.get_api_params(**opts),
         )
-
-        return self.sandbox_id
 
     @overload
     async def get_info(
@@ -931,7 +929,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         envs: Optional[Dict[str, str]] = None,
         secure: Optional[bool] = None,
         **opts: Unpack[ApiParams],
-    ):
+    ) -> Self:
         """
         [BETA] This feature is in beta and may change in the future.
 
@@ -981,7 +979,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         envs: Optional[Dict[str, str]],
         secure: bool,
         **opts: Unpack[ApiParams],
-    ):
+    ) -> Self:
         extra_sandbox_headers = {}
 
         if opts.get("debug"):
