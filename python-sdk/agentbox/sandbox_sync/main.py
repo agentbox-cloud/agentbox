@@ -1102,7 +1102,7 @@ class Sandbox(SandboxSetup, SandboxApi):
         domain: Optional[str] = None,
         debug: Optional[bool] = None,
         request_timeout: Optional[float] = None,
-    )  -> None:
+    ) -> None:
         """
         Pause a sandbox by its ID.
 
