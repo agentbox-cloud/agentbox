@@ -116,7 +116,8 @@ class ADBShell:
 
     async def close(self):
         self._active = False
-        await self._device.close()
+        if self._device:
+            await self._device.close()
 
 
     async def _get_adb_public_info(self):
