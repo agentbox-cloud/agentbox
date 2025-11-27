@@ -22,13 +22,14 @@ class RunningSandboxWithMetrics:
         client_id (str): Identifier of the client
         cpu_count (int): CPU cores for the sandbox
         end_at (datetime.datetime): Time when the sandbox will expire
-        memory_mb (int): Memory for the sandbox in MB
+        memory_mb (int): Memory for the sandbox in MiB
         sandbox_id (str): Identifier of the sandbox
         started_at (datetime.datetime): Time when the sandbox was started
         template_id (str): Identifier of the template from which is the sandbox created
         alias (Union[Unset, str]): Alias of the template
         metadata (Union[Unset, Any]):
         metrics (Union[Unset, list['SandboxMetric']]):
+        sandboxes (Union[Unset, Any]):
     """
 
     client_id: str
@@ -41,6 +42,7 @@ class RunningSandboxWithMetrics:
     alias: Union[Unset, str] = UNSET
     metadata: Union[Unset, Any] = UNSET
     metrics: Union[Unset, list["SandboxMetric"]] = UNSET
+    sandboxes: Union[Unset, Any] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -69,6 +71,8 @@ class RunningSandboxWithMetrics:
                 metrics_item = metrics_item_data.to_dict()
                 metrics.append(metrics_item)
 
+        sandboxes = self.sandboxes
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -88,6 +92,8 @@ class RunningSandboxWithMetrics:
             field_dict["metadata"] = metadata
         if metrics is not UNSET:
             field_dict["metrics"] = metrics
+        if sandboxes is not UNSET:
+            field_dict["sandboxes"] = sandboxes
 
         return field_dict
 
@@ -121,6 +127,8 @@ class RunningSandboxWithMetrics:
 
             metrics.append(metrics_item)
 
+        sandboxes = d.pop("sandboxes", UNSET)
+
         running_sandbox_with_metrics = cls(
             client_id=client_id,
             cpu_count=cpu_count,
@@ -132,6 +140,7 @@ class RunningSandboxWithMetrics:
             alias=alias,
             metadata=metadata,
             metrics=metrics,
+            sandboxes=sandboxes,
         )
 
         running_sandbox_with_metrics.additional_properties = d

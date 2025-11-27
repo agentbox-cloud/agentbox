@@ -26,6 +26,7 @@ class SignupParams:
         data (Union[Unset, SignupParamsData]): Map of data
         phone (Union[Unset, str]): phone of the user
         provider (Union[Unset, str]): provider
+        return_to (Union[Unset, str]): Url for email auth link
     """
 
     email: str
@@ -37,6 +38,7 @@ class SignupParams:
     data: Union[Unset, "SignupParamsData"] = UNSET
     phone: Union[Unset, str] = UNSET
     provider: Union[Unset, str] = UNSET
+    return_to: Union[Unset, str] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -60,6 +62,8 @@ class SignupParams:
 
         provider = self.provider
 
+        return_to = self.return_to
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -82,6 +86,8 @@ class SignupParams:
             field_dict["phone"] = phone
         if provider is not UNSET:
             field_dict["provider"] = provider
+        if return_to is not UNSET:
+            field_dict["return_to"] = return_to
 
         return field_dict
 
@@ -113,6 +119,8 @@ class SignupParams:
 
         provider = d.pop("provider", UNSET)
 
+        return_to = d.pop("return_to", UNSET)
+
         signup_params = cls(
             email=email,
             password=password,
@@ -123,6 +131,7 @@ class SignupParams:
             data=data,
             phone=phone,
             provider=provider,
+            return_to=return_to,
         )
 
         signup_params.additional_properties = d

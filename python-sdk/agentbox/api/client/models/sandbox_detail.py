@@ -1,6 +1,6 @@
 import datetime
 from collections.abc import Mapping
-from typing import Any, TypeVar, Union
+from typing import Any, TypeVar, Union, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -19,12 +19,14 @@ class SandboxDetail:
         client_id (str): Identifier of the client
         cpu_count (int): CPU cores for the sandbox
         end_at (datetime.datetime): Time when the sandbox will expire
-        memory_mb (int): Memory for the sandbox in MB
+        memory_mb (int): Memory for the sandbox in MiB
         sandbox_id (str): Identifier of the sandbox
         started_at (datetime.datetime): Time when the sandbox was started
         state (SandboxState): State of the sandbox
         template_id (str): Identifier of the template from which is the sandbox created
         alias (Union[Unset, str]): Alias of the template
+        disk_size_mb (Union[Unset, int]): Disk size for the sandbox in MiB
+        domain (Union[None, Unset, str]): Base domain where the sandbox traffic is accessible
         envd_access_token (Union[Unset, str]): Access token used for envd communication
         envd_version (Union[Unset, str]): Version of the envd running in the sandbox
         metadata (Union[Unset, Any]):
@@ -39,6 +41,8 @@ class SandboxDetail:
     state: SandboxState
     template_id: str
     alias: Union[Unset, str] = UNSET
+    disk_size_mb: Union[Unset, int] = UNSET
+    domain: Union[None, Unset, str] = UNSET
     envd_access_token: Union[Unset, str] = UNSET
     envd_version: Union[Unset, str] = UNSET
     metadata: Union[Unset, Any] = UNSET
@@ -63,6 +67,14 @@ class SandboxDetail:
 
         alias = self.alias
 
+        disk_size_mb = self.disk_size_mb
+
+        domain: Union[None, Unset, str]
+        if isinstance(self.domain, Unset):
+            domain = UNSET
+        else:
+            domain = self.domain
+
         envd_access_token = self.envd_access_token
 
         envd_version = self.envd_version
@@ -85,6 +97,10 @@ class SandboxDetail:
         )
         if alias is not UNSET:
             field_dict["alias"] = alias
+        if disk_size_mb is not UNSET:
+            field_dict["diskSizeMB"] = disk_size_mb
+        if domain is not UNSET:
+            field_dict["domain"] = domain
         if envd_access_token is not UNSET:
             field_dict["envdAccessToken"] = envd_access_token
         if envd_version is not UNSET:
@@ -115,6 +131,17 @@ class SandboxDetail:
 
         alias = d.pop("alias", UNSET)
 
+        disk_size_mb = d.pop("diskSizeMB", UNSET)
+
+        def _parse_domain(data: object) -> Union[None, Unset, str]:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(Union[None, Unset, str], data)
+
+        domain = _parse_domain(d.pop("domain", UNSET))
+
         envd_access_token = d.pop("envdAccessToken", UNSET)
 
         envd_version = d.pop("envdVersion", UNSET)
@@ -131,6 +158,8 @@ class SandboxDetail:
             state=state,
             template_id=template_id,
             alias=alias,
+            disk_size_mb=disk_size_mb,
+            domain=domain,
             envd_access_token=envd_access_token,
             envd_version=envd_version,
             metadata=metadata,
