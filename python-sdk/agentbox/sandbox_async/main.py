@@ -527,7 +527,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         domain: Optional[str] = None,
         debug: Optional[bool] = None,
         request_timeout: Optional[float] = None,
-    ):
+    ) -> Self:
         """
         Resume the sandbox.
 
@@ -546,7 +546,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
 
         timeout = timeout or cls.default_sandbox_timeout
 
-        return await SandboxApi._cls_resume(
+        await SandboxApi._cls_resume(
             sandbox_id=sandbox_id,
             request_timeout=request_timeout,
             timeout=timeout,
@@ -554,6 +554,70 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
             domain=domain,
             debug=debug,
         )
+
+        connection_headers = {}
+        response = await SandboxApi.get_info(sandbox_id=sandbox_id, api_key=api_key, domain=domain, debug=debug)
+        if response._envd_access_token is not None and not isinstance(
+            response._envd_access_token, Unset
+        ):
+            connection_headers["X-Access-Token"] = response._envd_access_token
+
+        connection_config = ConnectionConfig(
+            api_key=api_key,
+            domain=domain,
+            debug=debug,
+            headers=connection_headers,
+        )
+
+        if "brd" in sandbox_id.lower():
+            # Get SSH connection details
+            ssh_info = await SandboxApi._get_ssh(
+                sandbox_id=sandbox_id,
+                api_key=api_key,
+                domain=domain,
+                debug=debug,
+                request_timeout=request_timeout,
+            )
+
+            # Parse SSH connection details from the connect command
+            pattern = r'ssh\s+-p\s+(\d+).*?\s+([^@\s]+)@([\w\.-]+)'
+            ssh_match = re.search(pattern, ssh_info.connect_command)
+            if ssh_match:
+                ssh_port = int(ssh_match.group(1))
+                ssh_username = ssh_match.group(2)
+                ssh_host = ssh_match.group(3)
+                ssh_password = ssh_info.auth_password
+            else:
+                raise Exception("Could not parse SSH connection details")
+            # Get adb connection details
+            adb_info = await SandboxApi._get_adb(
+                sandbox_id=sandbox_id,
+                api_key=api_key,
+                domain=domain,
+                debug=debug,
+            )
+            return cls(
+                sandbox_id=sandbox_id,
+                envd_version=response.envd_version,
+                envd_access_token=response._envd_access_token,
+                connection_config=connection_config,
+                ssh_host=ssh_host,
+                ssh_port=ssh_port,
+                ssh_username=ssh_username,
+                ssh_password=ssh_password,
+                adb_auth_command=adb_info.adb_auth_command,
+                adb_auth_password=adb_info.auth_password,
+                adb_connect_command=adb_info.connect_command,
+                adb_forwarder_command=adb_info.forwarder_command
+            )
+        else:
+            return cls(
+                sandbox_id=sandbox_id,
+                envd_version=response.envd_version,
+                envd_access_token=response._envd_access_token,
+                connection_config=connection_config,
+                commands=cls.commands
+            )
 
     @overload
     async def pause(

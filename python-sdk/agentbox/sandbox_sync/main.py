@@ -545,7 +545,7 @@ class Sandbox(SandboxSetup, SandboxApi):
         domain: Optional[str] = None,
         debug: Optional[bool] = None,
         request_timeout: Optional[float] = None,
-    ):
+    ) -> Self:
         """
         Resume the sandbox.
 
@@ -564,13 +564,20 @@ class Sandbox(SandboxSetup, SandboxApi):
 
         timeout = timeout or cls.default_sandbox_timeout
 
-        return SandboxApi._cls_resume(
+        SandboxApi._cls_resume(
             sandbox_id=sandbox_id,
             request_timeout=request_timeout,
             timeout=timeout,
             api_key=api_key,
             domain=domain,
             debug=debug,
+        )
+        return cls(
+            sandbox_id=sandbox_id,
+            api_key=api_key,
+            domain=domain,
+            debug=debug,
+            request_timeout=request_timeout,
         )
 
     @overload
