@@ -277,6 +277,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         request_timeout: Optional[float] = None,
         proxy: Optional[ProxyTypes] = None,
         secure: Optional[bool] = None,
+        auto_pause: bool = False,
     ) -> Self:
         """
         Create a new sandbox.
@@ -327,6 +328,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
                 env_vars=envs,
                 secure=secure,
                 proxy=proxy,
+                auto_pause=auto_pause,
             )
 
             sandbox_id = response.sandbox_id
