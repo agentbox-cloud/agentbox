@@ -19,12 +19,14 @@ class ListedSandbox:
         client_id (str): Identifier of the client
         cpu_count (int): CPU cores for the sandbox
         end_at (datetime.datetime): Time when the sandbox will expire
-        memory_mb (int): Memory for the sandbox in MB
+        memory_mb (int): Memory for the sandbox in MiB
         sandbox_id (str): Identifier of the sandbox
         started_at (datetime.datetime): Time when the sandbox was started
         state (SandboxState): State of the sandbox
         template_id (str): Identifier of the template from which is the sandbox created
         alias (Union[Unset, str]): Alias of the template
+        disk_size_mb (Union[Unset, int]): Disk size for the sandbox in MiB
+        envd_version (Union[Unset, str]): Version of the envd running in the sandbox
         metadata (Union[Unset, Any]):
     """
 
@@ -37,6 +39,8 @@ class ListedSandbox:
     state: SandboxState
     template_id: str
     alias: Union[Unset, str] = UNSET
+    disk_size_mb: Union[Unset, int] = UNSET
+    envd_version: Union[Unset, str] = UNSET
     metadata: Union[Unset, Any] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -59,6 +63,10 @@ class ListedSandbox:
 
         alias = self.alias
 
+        disk_size_mb = self.disk_size_mb
+
+        envd_version = self.envd_version
+
         metadata = self.metadata
 
         field_dict: dict[str, Any] = {}
@@ -77,6 +85,10 @@ class ListedSandbox:
         )
         if alias is not UNSET:
             field_dict["alias"] = alias
+        if disk_size_mb is not UNSET:
+            field_dict["diskSizeMB"] = disk_size_mb
+        if envd_version is not UNSET:
+            field_dict["envdVersion"] = envd_version
         if metadata is not UNSET:
             field_dict["metadata"] = metadata
 
@@ -103,6 +115,10 @@ class ListedSandbox:
 
         alias = d.pop("alias", UNSET)
 
+        disk_size_mb = d.pop("diskSizeMB", UNSET)
+
+        envd_version = d.pop("envdVersion", UNSET)
+
         metadata = d.pop("metadata", UNSET)
 
         listed_sandbox = cls(
@@ -115,6 +131,8 @@ class ListedSandbox:
             state=state,
             template_id=template_id,
             alias=alias,
+            disk_size_mb=disk_size_mb,
+            envd_version=envd_version,
             metadata=metadata,
         )
 

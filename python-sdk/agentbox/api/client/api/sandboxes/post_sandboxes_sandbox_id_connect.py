@@ -5,49 +5,44 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
+from ...models.connect_sandbox import ConnectSandbox
 from ...models.error import Error
-from ...models.running_sandbox_with_metrics import RunningSandboxWithMetrics
-from ...types import UNSET, Response, Unset
+from ...models.sandbox import Sandbox
+from ...types import Response
 
 
 def _get_kwargs(
+    sandbox_id: str,
     *,
-    metadata: Union[Unset, str] = UNSET,
-    sandbox_ids: Union[Unset, list[str]] = UNSET,
+    body: ConnectSandbox,
 ) -> dict[str, Any]:
-    params: dict[str, Any] = {}
-
-    params["metadata"] = metadata
-
-    json_sandbox_ids: Union[Unset, list[str]] = UNSET
-    if not isinstance(sandbox_ids, Unset):
-        json_sandbox_ids = sandbox_ids
-
-    params["sandbox_ids"] = json_sandbox_ids
-
-    params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
+    headers: dict[str, Any] = {}
 
     _kwargs: dict[str, Any] = {
-        "method": "get",
-        "url": "/sandboxes/metrics",
-        "params": params,
+        "method": "post",
+        "url": f"/sandboxes/{sandbox_id}/connect",
     }
 
+    _kwargs["json"] = body.to_dict()
+
+    headers["Content-Type"] = "application/json"
+
+    _kwargs["headers"] = headers
     return _kwargs
 
 
 def _parse_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[Error, list["RunningSandboxWithMetrics"]]]:
+) -> Optional[Union[Error, Sandbox]]:
     if response.status_code == 200:
-        response_200 = []
-        _response_200 = response.json()
-        for response_200_item_data in _response_200:
-            response_200_item = RunningSandboxWithMetrics.from_dict(response_200_item_data)
-
-            response_200.append(response_200_item)
+        response_200 = Sandbox.from_dict(response.json())
 
         return response_200
+
+    if response.status_code == 201:
+        response_201 = Sandbox.from_dict(response.json())
+
+        return response_201
 
     if response.status_code == 400:
         response_400 = Error.from_dict(response.json())
@@ -58,6 +53,11 @@ def _parse_response(
         response_401 = Error.from_dict(response.json())
 
         return response_401
+
+    if response.status_code == 404:
+        response_404 = Error.from_dict(response.json())
+
+        return response_404
 
     if response.status_code == 500:
         response_500 = Error.from_dict(response.json())
@@ -72,7 +72,7 @@ def _parse_response(
 
 def _build_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[Error, list["RunningSandboxWithMetrics"]]]:
+) -> Response[Union[Error, Sandbox]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -82,28 +82,28 @@ def _build_response(
 
 
 def sync_detailed(
+    sandbox_id: str,
     *,
     client: AuthenticatedClient,
-    metadata: Union[Unset, str] = UNSET,
-    sandbox_ids: Union[Unset, list[str]] = UNSET,
-) -> Response[Union[Error, list["RunningSandboxWithMetrics"]]]:
-    """List all running sandboxes with metrics
+    body: ConnectSandbox,
+) -> Response[Union[Error, Sandbox]]:
+    """Returns sandbox details. If the sandbox is paused, it will be resumed. TTL is only extended.
 
     Args:
-        metadata (Union[Unset, str]):
-        sandbox_ids (Union[Unset, list[str]]):
+        sandbox_id (str):
+        body (ConnectSandbox):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[Error, list['RunningSandboxWithMetrics']]]
+        Response[Union[Error, Sandbox]]
     """
 
     kwargs = _get_kwargs(
-        metadata=metadata,
-        sandbox_ids=sandbox_ids,
+        sandbox_id=sandbox_id,
+        body=body,
     )
 
     response = client.get_httpx_client().request(
@@ -114,55 +114,55 @@ def sync_detailed(
 
 
 def sync(
+    sandbox_id: str,
     *,
     client: AuthenticatedClient,
-    metadata: Union[Unset, str] = UNSET,
-    sandbox_ids: Union[Unset, list[str]] = UNSET,
-) -> Optional[Union[Error, list["RunningSandboxWithMetrics"]]]:
-    """List all running sandboxes with metrics
+    body: ConnectSandbox,
+) -> Optional[Union[Error, Sandbox]]:
+    """Returns sandbox details. If the sandbox is paused, it will be resumed. TTL is only extended.
 
     Args:
-        metadata (Union[Unset, str]):
-        sandbox_ids (Union[Unset, list[str]]):
+        sandbox_id (str):
+        body (ConnectSandbox):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[Error, list['RunningSandboxWithMetrics']]
+        Union[Error, Sandbox]
     """
 
     return sync_detailed(
+        sandbox_id=sandbox_id,
         client=client,
-        metadata=metadata,
-        sandbox_ids=sandbox_ids,
+        body=body,
     ).parsed
 
 
 async def asyncio_detailed(
+    sandbox_id: str,
     *,
     client: AuthenticatedClient,
-    metadata: Union[Unset, str] = UNSET,
-    sandbox_ids: Union[Unset, list[str]] = UNSET,
-) -> Response[Union[Error, list["RunningSandboxWithMetrics"]]]:
-    """List all running sandboxes with metrics
+    body: ConnectSandbox,
+) -> Response[Union[Error, Sandbox]]:
+    """Returns sandbox details. If the sandbox is paused, it will be resumed. TTL is only extended.
 
     Args:
-        metadata (Union[Unset, str]):
-        sandbox_ids (Union[Unset, list[str]]):
+        sandbox_id (str):
+        body (ConnectSandbox):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[Error, list['RunningSandboxWithMetrics']]]
+        Response[Union[Error, Sandbox]]
     """
 
     kwargs = _get_kwargs(
-        metadata=metadata,
-        sandbox_ids=sandbox_ids,
+        sandbox_id=sandbox_id,
+        body=body,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -171,29 +171,29 @@ async def asyncio_detailed(
 
 
 async def asyncio(
+    sandbox_id: str,
     *,
     client: AuthenticatedClient,
-    metadata: Union[Unset, str] = UNSET,
-    sandbox_ids: Union[Unset, list[str]] = UNSET,
-) -> Optional[Union[Error, list["RunningSandboxWithMetrics"]]]:
-    """List all running sandboxes with metrics
+    body: ConnectSandbox,
+) -> Optional[Union[Error, Sandbox]]:
+    """Returns sandbox details. If the sandbox is paused, it will be resumed. TTL is only extended.
 
     Args:
-        metadata (Union[Unset, str]):
-        sandbox_ids (Union[Unset, list[str]]):
+        sandbox_id (str):
+        body (ConnectSandbox):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[Error, list['RunningSandboxWithMetrics']]
+        Union[Error, Sandbox]
     """
 
     return (
         await asyncio_detailed(
+            sandbox_id=sandbox_id,
             client=client,
-            metadata=metadata,
-            sandbox_ids=sandbox_ids,
+            body=body,
         )
     ).parsed
