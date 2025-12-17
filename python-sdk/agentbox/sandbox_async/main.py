@@ -995,7 +995,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
             auto_pause=auto_pause,
         )
 
-    async def set_model_information(  # type: ignore
+    async def set_model_information(
         self,
         model: str,
         brand: str,
