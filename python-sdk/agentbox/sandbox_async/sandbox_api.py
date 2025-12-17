@@ -8,6 +8,7 @@ from agentbox.sandbox.sandbox_api import SandboxInfo, SandboxApiBase, SandboxQue
 from agentbox.exceptions import TemplateException, SandboxException
 from agentbox.api import AsyncApiClient, SandboxCreateResponse
 from agentbox.api.client.models import NewSandbox, PostSandboxesSandboxIDTimeoutBody, SandboxADB, SandboxADBPublicInfo, SandboxSSH, InstanceAuthInfo, ResumedSandbox, Sandbox, Error, ConnectSandbox
+from agentbox.api.client.models import ModelInformationRequest
 
 from agentbox.api.client.api.sandboxes import (
     get_sandboxes_sandbox_id,
@@ -23,6 +24,7 @@ from agentbox.api.client.api.sandboxes import (
     post_sandboxes_sandbox_id_pause,
     post_sandboxes_sandbox_id_resume,
     post_sandboxes_sandbox_id_connect,
+    post_sandboxes_sandbox_id_model_information,
 )
 from agentbox.connection_config import ConnectionConfig, ProxyTypes
 from agentbox.api import handle_api_exception
@@ -673,5 +675,44 @@ class SandboxApi(SandboxApiBase):
 
             if isinstance(res.parsed, Error):
                 raise SandboxException(f"{res.parsed.message}: Request failed")
+
+            return res.parsed
+
+    @classmethod
+    async def _cls_set_model_information(
+        cls,
+        sandbox_id: str,
+        model: str,
+        brand: str,
+        manufacturer: str,
+        api_key: Optional[str] = None,
+        domain: Optional[str] = None,
+        debug: Optional[bool] = None,
+        request_timeout: Optional[float] = None,
+        headers: Optional[Dict[str, str]] = None,
+        proxy: Optional[ProxyTypes] = None,
+    ) -> None:
+        config = ConnectionConfig(
+            api_key=api_key,
+            domain=domain,
+            debug=debug,
+            request_timeout=request_timeout,
+            headers=headers,
+            proxy=proxy,
+        )
+
+        async with AsyncApiClient(config,limits=SandboxApiBase._limits) as api_client:
+            res = await post_sandboxes_sandbox_id_model_information.asyncio_detailed(
+                sandbox_id=sandbox_id,
+                client=api_client,
+                body=ModelInformationRequest(
+                    model=model,
+                    brand=brand,
+                    manufacturer=manufacturer,
+                ),
+            )
+
+            if res.status_code >= 300:
+                raise handle_api_exception(res)
 
             return res.parsed

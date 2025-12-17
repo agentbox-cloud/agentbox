@@ -994,3 +994,27 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
             secure=secure,
             auto_pause=auto_pause,
         )
+
+    async def set_model_information(  # type: ignore
+        self,
+        model: str,
+        brand: str,
+        manufacturer: str,
+        request_timeout: Optional[float] = None,
+    ) -> None:
+        """
+        Set model information for the sandbox.
+        """
+
+        return await SandboxApi._cls_set_model_information(
+            sandbox_id=self.sandbox_id,
+            model=model,
+            brand=brand,
+            manufacturer=manufacturer,
+            request_timeout=request_timeout,
+            api_key=self.connection_config.api_key,
+            domain=self.connection_config.domain,
+            debug=self.connection_config.debug,
+            proxy=self.connection_config.proxy,
+            headers=self.connection_config.headers,
+        )
