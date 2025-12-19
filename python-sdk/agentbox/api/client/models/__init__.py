@@ -26,6 +26,8 @@ from .identifier_masking_details import IdentifierMaskingDetails
 from .inbox_message import InboxMessage
 from .instance_auth_info import InstanceAuthInfo
 from .listed_sandbox import ListedSandbox
+from .model_information_request import ModelInformationRequest
+from .model_information_response import ModelInformationResponse
 from .new_access_token import NewAccessToken
 from .new_sandbox import NewSandbox
 from .new_team_api_key import NewTeamAPIKey
@@ -108,6 +110,8 @@ __all__ = (
     "InboxMessage",
     "InstanceAuthInfo",
     "ListedSandbox",
+    "ModelInformationRequest",
+    "ModelInformationResponse",
     "NewAccessToken",
     "NewSandbox",
     "NewTeamAPIKey",
