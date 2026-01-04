@@ -18,8 +18,11 @@ class SandboxSetup(ABC):
 
     envd_port = 49983
 
+    mcp_port = 50005
+
     default_sandbox_timeout = 300
     default_template = "base"
+    default_mcp_template = "mcp-gateway"  # MCP Gateway 模板名称
 
     @property
     @abstractmethod
@@ -113,3 +116,11 @@ class SandboxSetup(ABC):
             return f"localhost:{port}"
 
         return f"{port}-{self.sandbox_id}.{self.connection_config.domain}"
+
+    def get_mcp_url(self) -> str:
+        """
+        Get the MCP URL for the sandbox.
+
+        :returns MCP URL for the sandbox.
+        """
+        return f"https://{self.get_host(self.mcp_port)}/mcp"

@@ -1,6 +1,8 @@
 import logging
 import httpx
 import re
+import json
+import uuid
 
 from typing import Dict, Optional, TypedDict, overload
 from typing_extensions import Unpack, Self
@@ -10,6 +12,7 @@ from agentbox.connection_config import ConnectionConfig, ProxyTypes
 from agentbox.envd.api import ENVD_API_HEALTH_ROUTE, ahandle_envd_api_exception
 from agentbox.exceptions import format_request_timeout_error
 from agentbox.sandbox.main import SandboxSetup
+from agentbox.sandbox.mcp import McpServer
 from agentbox.sandbox.utils import class_method_variant
 from agentbox.sandbox_async.adb_shell.adb_shell import ADBShell
 from agentbox.sandbox_async.filesystem.filesystem import Filesystem
@@ -50,6 +53,7 @@ class AsyncSandboxOpts(TypedDict):
     adb_auth_password: Optional[str]
     adb_connect_command: Optional[str]
     adb_forwarder_command: Optional[str]
+    _mcp_token: Optional[str]  # Internal: MCP Gateway token
 
 
 class AsyncSandbox(SandboxSetup, SandboxApi):
@@ -152,6 +156,8 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         self._adb_auth_password = opts.get("adb_auth_password")
         self._adb_connect_command = opts.get("adb_connect_command")
         self._adb_forwarder_command = opts.get("adb_forwarder_command")
+        # MCP token storage
+        self._mcp_token: Optional[str] = opts.get("_mcp_token")
 
         self._envd_api_url = f"{'http' if self.connection_config.debug else 'https'}://{self.get_host(self.envd_port)}"
         self._envd_version = opts.get("envd_version")
@@ -278,6 +284,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         proxy: Optional[ProxyTypes] = None,
         secure: Optional[bool] = None,
         auto_pause: bool = False,
+        mcp: Optional[McpServer] = None,
     ) -> Self:
         """
         Create a new sandbox.
@@ -292,6 +299,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         :param request_timeout: Timeout for the request in **seconds**
         :param proxy: Proxy to use for the request and for the **requests made to the returned sandbox**
         :param secure: Envd is secured with access token and cannot be used without it
+        :param mcp: Optional MCP server configuration. When provided, automatically uses mcp-gateway template.
 
         :return: sandbox instance for the new sandbox
 
@@ -299,6 +307,12 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         """
 
         connection_headers = {}
+
+        # 如果指定了 mcp 且没有指定 template，自动使用 mcp-gateway 模板
+        if mcp is not None and template is None:
+            template = cls.default_mcp_template
+        else:
+            template = template or cls.default_template
 
         if debug:
             sandbox_id = "debug_sandbox_id"
@@ -318,7 +332,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
             )
         else:
             response = await SandboxApi._create_sandbox(
-                template=template or cls.default_template,
+                template=template,
                 api_key=api_key,
                 timeout=timeout or cls.default_sandbox_timeout,
                 metadata=metadata,
@@ -378,7 +392,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
                 debug=debug,
                 proxy=proxy,
             )
-            return cls(
+            sandbox = cls(
                 sandbox_id=sandbox_id,
                 envd_version=envd_version,
                 envd_access_token=envd_access_token,
@@ -393,12 +407,31 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
                 adb_forwarder_command=adb_info.forwarder_command
             )
         else:
-            return cls(
+            sandbox = cls(
                 sandbox_id=sandbox_id,
                 envd_version=envd_version,
                 envd_access_token=envd_access_token,
                 connection_config=connection_config,
             )
+
+        # 启动 MCP Gateway（如果指定了 mcp 配置）
+        if mcp is not None and not debug:
+            token = str(uuid.uuid4())
+            sandbox._mcp_token = token
+
+            try:
+                res = await sandbox.commands.run(
+                    f"mcp-gateway --config '{json.dumps(mcp)}'",
+                    user="root",
+                    envs={"GATEWAY_ACCESS_TOKEN": token},
+                )
+                if res.exit_code != 0:
+                    raise Exception(f"Failed to start MCP gateway: {res.stderr}")
+            except Exception as e:
+                logger.warning(f"Failed to start MCP gateway: {e}")
+                # 不抛出异常，允许 sandbox 继续使用
+
+        return sandbox
 
     async def __aenter__(self):
         return self
@@ -957,6 +990,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         proxy: Optional[ProxyTypes] = None,
         secure: Optional[bool] = None,
         auto_pause: bool = False,
+        mcp: Optional[McpServer] = None,
     ) -> Self:
         """
         [BETA] This feature is in beta and may change in the future.
@@ -976,6 +1010,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
         :param debug: Enable debug mode
         :param request_timeout: Timeout for the request in **seconds**
         :param proxy: Proxy to use for the request and for the **requests made to the returned sandbox**
+        :param mcp: Optional MCP server configuration. When provided, automatically uses mcp-gateway template.
 
         :return: A Sandbox instance for the new sandbox
 
@@ -993,6 +1028,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
             proxy=proxy,
             secure=secure,
             auto_pause=auto_pause,
+            mcp=mcp,
         )
 
     async def set_model_information(
@@ -1018,3 +1054,27 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
             proxy=self.connection_config.proxy,
             headers=self.connection_config.headers,
         )
+
+    async def get_mcp_token(self) -> Optional[str]:
+        """
+        Get the MCP Gateway access token.
+
+        The token is automatically generated when creating a sandbox with mcp parameter.
+        If the token is not cached, it will be read from /etc/mcp-gateway/.token file.
+
+        :return: MCP Gateway access token, or None if MCP is not enabled
+        """
+        if self._mcp_token:
+            return self._mcp_token
+
+        # 尝试从文件读取 token（如果存在）
+        try:
+            if not self.connection_config.debug:
+                token_content = await self.files.read("/etc/mcp-gateway/.token", user="root")
+                if token_content:
+                    self._mcp_token = token_content.strip()
+                    return self._mcp_token
+        except Exception:
+            pass
+
+        return None

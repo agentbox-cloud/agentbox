@@ -1,6 +1,8 @@
 import logging
 import httpx
 import re
+import json
+import uuid
 from datetime import datetime
 
 from typing import Dict, Optional, overload
@@ -12,6 +14,7 @@ from agentbox.connection_config import ConnectionConfig, ProxyTypes
 from agentbox.envd.api import ENVD_API_HEALTH_ROUTE, handle_envd_api_exception
 from agentbox.exceptions import SandboxException, format_request_timeout_error
 from agentbox.sandbox.main import SandboxSetup
+from agentbox.sandbox.mcp import McpServer
 from agentbox.sandbox.utils import class_method_variant
 from agentbox.sandbox_sync.adb_shell.adb_shell import ADBShell
 from agentbox.sandbox_sync.filesystem.filesystem import Filesystem
@@ -126,6 +129,7 @@ class Sandbox(SandboxSetup, SandboxApi):
         sandbox_id: Optional[str] = None,
         request_timeout: Optional[float] = None,
         proxy: Optional[ProxyTypes] = None,
+        mcp: Optional[McpServer] = None,
     ):
         """
         Create a new sandbox.
@@ -139,6 +143,7 @@ class Sandbox(SandboxSetup, SandboxApi):
         :param api_key: E2B API Key to use for authentication, defaults to `AGENTBOX_API_KEY` environment variable
         :param request_timeout: Timeout for the request in **seconds**
         :param proxy: Proxy to use for the request and for the **requests made to the returned sandbox**
+        :param mcp: Optional MCP server configuration. When provided, automatically uses mcp-gateway template.
 
         :return: sandbox instance for the new sandbox
         """
@@ -149,6 +154,9 @@ class Sandbox(SandboxSetup, SandboxApi):
                 "Cannot set metadata or timeout when connecting to an existing sandbox. "
                 "Use Sandbox.connect method instead.",
             )
+
+        # MCP token storage
+        self._mcp_token: Optional[str] = None
 
         connection_headers = {}
 
@@ -181,7 +189,11 @@ class Sandbox(SandboxSetup, SandboxApi):
                 connection_headers["X-Access-Token"] = response._envd_access_token
 
         else:
-            template = template or self.default_template
+            # 如果指定了 mcp 且没有指定 template，自动使用 mcp-gateway 模板
+            if mcp is not None and template is None:
+                template = self.default_mcp_template
+            else:
+                template = template or self.default_template
             timeout = timeout or self.default_sandbox_timeout
             response = SandboxApi._create_sandbox(
                 template=template,
@@ -312,6 +324,26 @@ class Sandbox(SandboxSetup, SandboxApi):
                 self.connection_config,
                 self._transport._pool,
             )
+
+        # 启动 MCP Gateway（如果指定了 mcp 配置）
+        # 只在创建新 sandbox 时启动（不是连接现有 sandbox，也不是 debug 模式）
+        if mcp is not None and sandbox_id is None and not debug:
+            token = str(uuid.uuid4())
+            self._mcp_token = token
+
+            try:
+                # 确保 commands 已经初始化
+                if hasattr(self, '_commands') and self._commands is not None:
+                    res = self.commands.run(
+                        f"mcp-gateway --config '{json.dumps(mcp)}'",
+                        user="root",
+                        envs={"GATEWAY_ACCESS_TOKEN": token},
+                    )
+                    if res.exit_code != 0:
+                        raise Exception(f"Failed to start MCP gateway: {res.stderr}")
+            except Exception as e:
+                logger.warning(f"Failed to start MCP gateway: {e}")
+                # 不抛出异常，允许 sandbox 继续使用
 
     def is_running(self, request_timeout: Optional[float] = None) -> bool:
         """
@@ -652,6 +684,7 @@ class Sandbox(SandboxSetup, SandboxApi):
         debug: Optional[bool] = None,
         request_timeout: Optional[float] = None,
         proxy: Optional[ProxyTypes] = None,
+        mcp: Optional[McpServer] = None,
     ) -> Self:
         """
         [BETA] This feature is in beta and may change in the future.
@@ -671,13 +704,20 @@ class Sandbox(SandboxSetup, SandboxApi):
         :param debug: Enable debug mode
         :param request_timeout: Timeout for the request in **seconds**
         :param proxy: Proxy to use for the request and for the **requests made to the returned sandbox**
+        :param mcp: Optional MCP server configuration. When provided, automatically uses mcp-gateway template.
 
         :return: A Sandbox instance for the new sandbox
 
         Use this method instead of using the constructor to create a new sandbox.
         """
+        # 如果指定了 mcp 且没有指定 template，自动使用 mcp-gateway 模板
+        if mcp is not None and template is None:
+            template = cls.default_mcp_template
+        else:
+            template = template or cls.default_template
+
         response = SandboxApi._create_sandbox(
-            template=template or cls.default_template,
+            template=template,
             timeout=timeout or cls.default_sandbox_timeout,
             auto_pause=auto_pause,
             metadata=metadata,
@@ -699,6 +739,7 @@ class Sandbox(SandboxSetup, SandboxApi):
             debug=debug,
             request_timeout=request_timeout,
             proxy=proxy,
+            mcp=mcp,
         )
 
     @overload
@@ -869,3 +910,27 @@ class Sandbox(SandboxSetup, SandboxApi):
             proxy=self.connection_config.proxy,
             headers=self.connection_config.headers,
         )
+
+    def get_mcp_token(self) -> Optional[str]:
+        """
+        Get the MCP Gateway access token.
+
+        The token is automatically generated when creating a sandbox with mcp parameter.
+        If the token is not cached, it will be read from /etc/mcp-gateway/.token file.
+
+        :return: MCP Gateway access token, or None if MCP is not enabled
+        """
+        if self._mcp_token:
+            return self._mcp_token
+
+        # 尝试从文件读取 token（如果存在）
+        try:
+            if not self.connection_config.debug and "brd" not in self.sandbox_id.lower():
+                token_content = self.files.read("/etc/mcp-gateway/.token", user="root")
+                if token_content:
+                    self._mcp_token = token_content.strip()
+                    return self._mcp_token
+        except Exception:
+            pass
+
+        return None

@@ -56,6 +56,7 @@ from .sandbox.filesystem.watch_handle import (
     FilesystemEvent,FilesystemEventType,
 )
 from .sandbox.filesystem.filesystem import EntryInfo, FileType
+from .sandbox.mcp import McpServer
 
 from .sandbox_sync.main import Sandbox
 from .sandbox_sync.filesystem.watch_handle import WatchHandle
@@ -111,4 +112,6 @@ __all__ = [
     # Async sandbox ssh
     "SSHAsyncWatchHandle",
     "SSHAsyncCommandHandle",
+    # MCP
+    "McpServer",
 ]

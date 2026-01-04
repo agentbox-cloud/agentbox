@@ -6,7 +6,19 @@ generate-api:
 	rm -rf agentbox/api/api
 
 init:
-	pip install openapi-python-client
+	pip install openapi-python-client datamodel-code-generator==0.34.0
 
 lint:
 	ruff check .
+
+generate-mcp:
+	datamodel-codegen \
+			--input ../docs/spec/mcp-server.json \
+			--input-file-type jsonschema \
+			--output agentbox/sandbox/mcp.py \
+			--output-model-type typing.TypedDict \
+			--target-python-version 3.9 \
+			--class-name McpServer \
+			--use-field-description \
+			--disable-timestamp \
+			--extra-fields forbid
