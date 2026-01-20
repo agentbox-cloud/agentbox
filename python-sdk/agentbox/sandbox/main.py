@@ -19,6 +19,7 @@ class SandboxSetup(ABC):
     envd_port = 49983
 
     default_sandbox_timeout = 300
+    default_connect_timeout = 3600 # auto_pause后再次connect的默认timeout 单位：秒
     default_template = "base"
 
     @property

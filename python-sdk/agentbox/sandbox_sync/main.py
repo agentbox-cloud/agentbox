@@ -826,7 +826,7 @@ class Sandbox(SandboxSetup, SandboxApi):
                 proxy=proxy,
             )
         else:
-            timeout = timeout or cls.default_sandbox_timeout
+            timeout = timeout or cls.default_connect_timeout
             SandboxApi._cls_connect(
                 sandbox_id=sandbox_id,
                 timeout=timeout,
