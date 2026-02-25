@@ -914,7 +914,7 @@ class AsyncSandbox(SandboxSetup, SandboxApi):
                 adb_forwarder_command=adb_info.forwarder_command
             )
         else:
-            timeout = timeout or cls.default_sandbox_timeout
+            timeout = timeout or cls.default_connect_timeout
             await SandboxApi._cls_connect(
                 sandbox_id=sandbox_id,
                 timeout=timeout,
